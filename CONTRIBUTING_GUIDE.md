@@ -17,7 +17,130 @@ Ce guide documente pas a pas les patterns a suivre pour ajouter de nouvelles fon
 - [Compiler et distribuer le package](#compiler-et-distribuer-le-package)
 - [Renommer le package](#renommer-le-package)
 
+
 ---
+
+## Fonctionnalites existantes par defaut
+
+### Outils MCP (`src/Mcp/Tools/`)
+
+15 outils enregistres dans `Boost::discoverTools()` :
+
+| Outil | Description | ReadOnly | Parametres |
+|-------|-------------|:--------:|------------|
+| `ApplicationInfo` | Infos completes de l'app (PHP, Laravel, packages, models Eloquent) | Oui | aucun |
+| `BrowserLogs` | Lire les N derniers logs du navigateur (debug frontend/JS) | Oui | `entries` (int, requis) |
+| `DatabaseConnections` | Lister les connexions BDD configurees | Oui | aucun |
+| `DatabaseQuery` | Executer une requete SQL en lecture seule | Oui | `query` (string, requis), `database` (string) |
+| `DatabaseSchema` | Schema BDD : tables, colonnes, index, cles etrangeres | Oui | `database`, `filter`, `include_views`, `include_routines`, `include_column_details` |
+| `GetAbsoluteUrl` | URL absolue pour un chemin relatif ou une route nommee | Oui | `path` (string), `route` (string) |
+| `GetConfig` | Valeur d'une config en notation pointee (ex: `app.name`) | Oui | `key` (string, requis) |
+| `LastError` | Details de la derniere erreur/exception backend | Oui | aucun |
+| `ListArtisanCommands` | Lister toutes les commandes Artisan disponibles | Oui | aucun |
+| `ListAvailableConfigKeys` | Lister toutes les cles de config en notation pointee | Oui | aucun |
+| `ListAvailableEnvVars` | Lister les variables d'environnement du `.env` | Oui | `filename` (string) |
+| `ListRoutes` | Lister toutes les routes (y compris Folio) | Oui | `method`, `action`, `name`, `domain`, `path`, `except_path`, `except_vendor`, `only_vendor` |
+| `ReadLogEntries` | Lire les N derniers logs applicatifs (PSR-3) | Oui | `entries` (int, requis) |
+| `SearchDocs` | Recherche semantique dans la doc Laravel et packages | Non | `queries` (array, requis), `packages` (array), `token_limit` (int) |
+| `Tinker` | Executer du code PHP dans le contexte Laravel | Non | `code` (string, requis), `timeout` (int, requis) |
+
+### Prompts MCP (`src/Mcp/Prompts/`)
+
+Enregistres dans `Boost::discoverPrompts()` :
+
+| Prompt | Nom MCP | Description |
+|--------|---------|-------------|
+| `LaravelCodeSimplifier` | `laravel-code-simplifier` | Simplifie et affine le code PHP/Laravel pour la clarte et la maintenabilite |
+| `UpgradeLivewireV4` | `upgrade-livewire-v4` | Guide pas a pas pour migrer de Livewire v3 a v4 |
+| `PackageGuidelinePrompt` | *(dynamique par package)* | Guidelines auto-generees pour chaque package tiers ayant un `.ai/core.blade.php` |
+
+### Ressources MCP (`src/Mcp/Resources/`)
+
+Enregistrees dans `Boost::discoverResources()` :
+
+| Ressource | URI | Description |
+|-----------|-----|-------------|
+| `ApplicationInfo` | `file://instructions/application-info.md` | Infos completes de l'app (delegue a l'outil `ApplicationInfo` via `ToolExecutor`) |
+| `PackageGuidelineResource` | *(dynamique)* | Guidelines auto-generees pour chaque package tiers |
+
+### Agents IA (`src/Install/Agents/`)
+
+7 agents enregistres dans `BoostManager::$agents`. Tous implementent `SupportsGuidelines`, `SupportsMcp` et `SupportsSkills`.
+
+| Agent | Identifiant | Config MCP | Guidelines | Particularites |
+|-------|-------------|------------|------------|----------------|
+| `ClaudeCode` | `claude_code` | `.mcp.json` | `CLAUDE.md` | - |
+| `Cursor` | `cursor` | `.cursor/mcp.json` | `AGENTS.md` | `frontmatter()` retourne `true` |
+| `Copilot` | `copilot` | `.vscode/mcp.json` | `AGENTS.md` | `frontmatter()` retourne `true` |
+| `Codex` | `codex` | `.codex/config.toml` | `AGENTS.md` | Config TOML, `mcpConfigKey()` = `mcp` |
+| `Gemini` | `gemini` | `.gemini/settings.json` | `GEMINI.md` | `transformGuidelines()` echappe les `@` |
+| `Junie` | `junie` | `.junie/mcp/mcp.json` | `.junie/guidelines.md` | `useAbsolutePathForMcp()` retourne `true` |
+| `OpenCode` | `opencode` | `opencode.json` | `AGENTS.md` | - |
+
+### Commandes Artisan (`src/Console/`)
+
+5 commandes enregistrees dans `BoostServiceProvider::registerCommands()` :
+
+| Commande | Classe | Description |
+|----------|--------|-------------|
+| `boost:install` | `InstallCommand` | Installation interactive (guidelines, skills, MCP) |
+| `boost:update` | `UpdateCommand` | Mettre a jour guidelines et skills vers la derniere version |
+| `boost:mcp` | `StartCommand` | Demarrer le serveur MCP (appele depuis mcp.json) |
+| `boost:execute-tool` | `ExecuteToolCommand` | Executer un outil MCP en isolation (commande interne) |
+| `boost:add-skill` | `AddSkillCommand` | Ajouter des skills depuis un depot GitHub distant |
+
+### Skills (`.ai/`)
+
+10 skills uniques repartis sur plusieurs versions de packages :
+
+| Skill | Package | Versions | Activation |
+|-------|---------|----------|------------|
+| `livewire-development` | Livewire | v2, v3, v4 | Composants reactifs, directives `wire:*`, tests Livewire |
+| `inertia-react-development` | Inertia React | v1, v2 | Pages React, formulaires, navigation avec `Link`/`router` |
+| `inertia-vue-development` | Inertia Vue | v1, v2 | Pages Vue, formulaires, navigation |
+| `inertia-svelte-development` | Inertia Svelte | v1, v2 | Pages Svelte, formulaires, navigation |
+| `volt-development` | Volt | - | Composants Livewire single-file, API fonctionnelle |
+| `folio-routing` | Folio | - | Routes file-based, parametres, model binding |
+| `pest-testing` | Pest | v3, v4 | Tests unitaires/feature, assertions, architecture tests |
+| `mcp-development` | MCP | - | Creation d'outils/ressources/prompts MCP |
+| `wayfinder-development` | Wayfinder | - | Routes Laravel depuis le frontend TypeScript |
+
+### Guidelines packages (`.ai/`)
+
+20+ packages avec guidelines Blade dans `.ai/{package}/core.blade.php` :
+
+| Categorie | Packages |
+|-----------|----------|
+| **Core** | `foundation`, `boost`, `php` (8.2, 8.3, 8.4, 8.5), `laravel` (v11, v12) |
+| **Frontend** | `livewire`, `inertia-laravel` (v1, v2), `inertia-react`, `inertia-vue`, `inertia-svelte`, `tailwindcss`, `volt`, `wayfinder` |
+| **UI** | `fluxui-free`, `fluxui-pro` |
+| **Testing** | `pest`, `phpunit`, `pint` |
+| **Outils** | `folio`, `pennant`, `mcp`, `sail`, `herd` |
+| **Conditionnel** | `enforce-tests` (active si choisi a l'installation) |
+
+### Middleware & Services
+
+| Type | Classe | Role |
+|------|--------|------|
+| Middleware | `InjectBoost` | Injecte le script JS de capture des logs navigateur dans les reponses HTML |
+| Service | `BrowserLogger` | Genere le JavaScript qui intercepte `console.*`, erreurs globales et rejections, envoie a `POST /_boost/browser-logs` |
+
+### Configuration (`config/boost.php`)
+
+| Cle | Defaut | Description |
+|-----|--------|-------------|
+| `enabled` | `true` | Interrupteur principal de Boost |
+| `browser_logs_watcher` | `true` | Active/desactive la capture des logs navigateur |
+| `executable_paths.php` | `null` | Chemin personnalise vers l'executable PHP |
+| `executable_paths.composer` | `null` | Chemin personnalise vers Composer |
+| `executable_paths.npm` | `null` | Chemin personnalise vers npm |
+| `executable_paths.vendor_bin` | `null` | Chemin personnalise vers vendor/bin |
+
+Le filtrage MCP (exclude/include par outil, prompt, ressource) est gere dynamiquement par `Boost::filterPrimitives()` et n'apparait pas dans la config par defaut.
+
+---
+
+## Guide d'implementation
 
 ## 1. Ajouter un outil MCP
 

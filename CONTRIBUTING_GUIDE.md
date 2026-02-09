@@ -6,16 +6,17 @@ Ce guide documente pas a pas les patterns a suivre pour ajouter de nouvelles fon
 
 ## Table des matieres
 
-- [Fonctionnalites existantes par defaut](#fonctionnalites-existantes-par-defaut)
-- [Guide d'implementation](#guide-dimplementation)
-  1. [Ajouter un outil MCP](#1-ajouter-un-outil-mcp)
-  2. [Ajouter un agent IA](#2-ajouter-un-agent-ia)
-  3. [Ajouter des guidelines pour un package](#3-ajouter-des-guidelines-pour-un-package)
-  4. [Ajouter un prompt MCP](#4-ajouter-un-prompt-mcp)
-  5. [Ajouter une ressource MCP](#5-ajouter-une-ressource-mcp)
-  6. [Ajouter un skill](#6-ajouter-un-skill)
-  7. [Ajouter une commande Artisan](#7-ajouter-une-commande-artisan)
-  8. [Ajouter un middleware ou service](#8-ajouter-un-middleware-ou-service)
+1. [Ajouter un outil MCP](#1-ajouter-un-outil-mcp)
+2. [Ajouter un agent IA](#2-ajouter-un-agent-ia)
+3. [Ajouter des guidelines pour un package](#3-ajouter-des-guidelines-pour-un-package)
+4. [Ajouter un prompt MCP](#4-ajouter-un-prompt-mcp)
+5. [Ajouter une ressource MCP](#5-ajouter-une-ressource-mcp)
+6. [Ajouter un skill](#6-ajouter-un-skill)
+7. [Ajouter une commande Artisan](#7-ajouter-une-commande-artisan)
+8. [Ajouter un middleware ou service](#8-ajouter-un-middleware-ou-service)
+- [Compiler et distribuer le package](#compiler-et-distribuer-le-package)
+- [Renommer le package](#renommer-le-package)
+
 
 ---
 
@@ -994,3 +995,356 @@ composer test -- tests/Feature/Mcp   # Sous-repertoire
 ### Pattern de filtrage MCP
 
 Tous les primitives MCP (outils, prompts, ressources) supportent le filtrage via la configuration `boost.mcp.{type}.exclude` et `boost.mcp.{type}.include`. Ce filtrage est applique automatiquement par `Boost::filterPrimitives()`.
+
+---
+
+## Compiler et distribuer le package
+
+Laravel Boost est un package Composer PHP standard. Il n'y a pas d'etape de "build" ou de compilation : le code source PHP est distribue tel quel.
+
+### Prerequis
+
+```bash
+php >= 8.2
+composer
+```
+
+### Installation des dependances de developpement
+
+```bash
+composer install
+```
+
+### Cycle de validation avant distribution
+
+```bash
+# 1. Corriger le style de code + analyse statique + refactoring
+composer lint
+
+# 2. Lancer tous les tests (Unit, Feature, Arch)
+composer test
+
+# 3. OU tout en une commande
+composer check
+```
+
+### Publier sur Packagist (depot public)
+
+**Etape 1 :** Creer un depot Git et pousser le code :
+
+```bash
+git init
+git remote add origin https://github.com/votre-vendor/votre-package.git
+git add .
+git commit -m "Initial release"
+git push -u origin main
+```
+
+**Etape 2 :** Creer un tag de version :
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+**Etape 3 :** Enregistrer le package sur [packagist.org](https://packagist.org) :
+- Se connecter avec son compte GitHub
+- Soumettre l'URL du depot
+- Packagist detecte automatiquement le `composer.json`
+
+**Etape 4 :** Le package est installable par les utilisateurs :
+
+```bash
+composer require votre-vendor/votre-package --dev
+```
+
+### Publier sur un depot Composer prive (Satis, Private Packagist, etc.)
+
+**Option A - Satis :**
+
+Ajouter le depot dans le `satis.json` :
+
+```json
+{
+    "repositories": [
+        { "type": "vcs", "url": "https://github.com/votre-vendor/votre-package.git" }
+    ]
+}
+```
+
+**Option B - Depot VCS direct :**
+
+Les utilisateurs ajoutent dans leur `composer.json` :
+
+```json
+{
+    "repositories": [
+        { "type": "vcs", "url": "https://github.com/votre-vendor/votre-package.git" }
+    ],
+    "require-dev": {
+        "votre-vendor/votre-package": "^1.0"
+    }
+}
+```
+
+**Option C - Depot local (path) pour le developpement :**
+
+```json
+{
+    "repositories": [
+        { "type": "path", "url": "../chemin-vers-le-package" }
+    ],
+    "require-dev": {
+        "votre-vendor/votre-package": "*"
+    }
+}
+```
+
+### Structure minimale requise pour la distribution
+
+Les fichiers essentiels a inclure dans le package :
+
+```
+composer.json          # Identite, dependances, autoload, scripts
+config/boost.php       # Configuration publiable
+src/                   # Code source PHP
+.ai/                   # Templates de guidelines Blade
+LICENSE.md             # Licence
+```
+
+Les fichiers a exclure de la distribution (via `.gitattributes`) :
+
+```gitattributes
+/tests              export-ignore
+/.github            export-ignore
+/art                export-ignore
+phpunit.xml.dist    export-ignore
+phpstan.neon.dist   export-ignore
+pint.json           export-ignore
+rector.php          export-ignore
+CHANGELOG.md        export-ignore
+UPGRADE.md          export-ignore
+```
+
+### Auto-decouverte Laravel
+
+Le package est auto-decouvert grace a la section `extra.laravel` dans `composer.json` :
+
+```json
+"extra": {
+    "laravel": {
+        "providers": [
+            "Laravel\\Boost\\BoostServiceProvider"
+        ]
+    }
+}
+```
+
+Aucune action manuelle n'est necessaire pour l'utilisateur apres `composer require`.
+
+---
+
+## Renommer le package
+
+Pour forker ou renommer `laravel/boost` en un autre nom (ex: `acme/ai-tools`), voici la liste exhaustive de tous les points d'ancrage a modifier.
+
+### Etape 1 : Identite Composer (`composer.json`)
+
+```diff
+- "name": "laravel/boost",
++ "name": "acme/ai-tools",
+
+- "homepage": "https://github.com/laravel/boost",
++ "homepage": "https://github.com/acme/ai-tools",
+
+- "Laravel\\Boost\\": "src/"
++ "Acme\\AiTools\\": "src/"
+
+- "Laravel\\Boost\\BoostServiceProvider"
++ "Acme\\AiTools\\AiToolsServiceProvider"
+```
+
+### Etape 2 : Namespace PHP (tous les fichiers dans `src/` et `tests/`)
+
+Renommer le namespace racine dans **tous** les fichiers PHP :
+
+| Ancien | Nouveau |
+|--------|---------|
+| `namespace Laravel\Boost;` | `namespace Acme\AiTools;` |
+| `namespace Laravel\Boost\Mcp;` | `namespace Acme\AiTools\Mcp;` |
+| `namespace Laravel\Boost\Mcp\Tools;` | `namespace Acme\AiTools\Mcp\Tools;` |
+| `namespace Laravel\Boost\Install\Agents;` | `namespace Acme\AiTools\Install\Agents;` |
+| `namespace Laravel\Boost\Console;` | `namespace Acme\AiTools\Console;` |
+| `use Laravel\Boost\...;` | `use Acme\AiTools\...;` |
+| `namespace Tests;` | *(inchange, ou adapter si voulu)* |
+
+**Commande pour renommer en masse :**
+
+```bash
+# Rechercher toutes les occurrences
+grep -r "Laravel\\\\Boost" src/ tests/ composer.json --include="*.php" --include="*.json" -l
+
+# Remplacement (adapter selon l'OS)
+find src tests -name "*.php" -exec sed -i 's/Laravel\\Boost/Acme\\AiTools/g' {} +
+```
+
+### Etape 3 : Noms de classes racine
+
+| Fichier | Ancien | Nouveau |
+|---------|--------|---------|
+| `src/BoostServiceProvider.php` | `class BoostServiceProvider` | `class AiToolsServiceProvider` |
+| `src/Boost.php` | `class Boost extends Facade` | `class AiTools extends Facade` |
+| `src/BoostManager.php` | `class BoostManager` | `class AiToolsManager` |
+| `src/Mcp/Boost.php` | `class Boost extends Server` | `class AiToolsServer extends Server` |
+
+> Renommer egalement les fichiers PHP pour correspondre aux nouveaux noms de classes.
+
+### Etape 4 : Configuration (`config/boost.php`)
+
+Renommer le fichier et la cle de configuration :
+
+```bash
+mv config/boost.php config/ai-tools.php
+```
+
+Puis mettre a jour le ServiceProvider :
+
+```diff
+- $this->mergeConfigFrom(__DIR__.'/../config/boost.php', 'boost');
++ $this->mergeConfigFrom(__DIR__.'/../config/ai-tools.php', 'ai-tools');
+
+- ], 'boost-config');
++ ], 'ai-tools-config');
+```
+
+### Etape 5 : References `config('boost.*')` dans le code source
+
+Rechercher et remplacer toutes les references de configuration. Fichiers concernes :
+
+| Pattern | Fichiers concernes |
+|---------|-------------------|
+| `config('boost.enabled')` | `BoostServiceProvider.php` |
+| `config('boost.browser_logs_watcher')` | `BoostServiceProvider.php` |
+| `config('boost.executable_paths.*')` | `Agent.php`, `GuidelineAssist.php` |
+| `config('boost.agents.*')` | Toutes les classes Agent (7 fichiers) |
+| `config('boost.mcp.*')` | `Mcp/Boost.php`, `Mcp/ToolRegistry.php` |
+| `config('boost.hosted.*')` | `Concerns/MakesHttpRequests.php`, `Tools/SearchDocs.php` |
+| `config('boost.github.*')` | `Skills/Remote/GitHubSkillProvider.php` |
+| `config('boost.purpose')` | `.ai/foundation.blade.php` |
+
+```bash
+# Trouver toutes les occurrences
+grep -rn "config('boost\." src/ .ai/ --include="*.php" --include="*.blade.php"
+```
+
+### Etape 6 : Variables d'environnement
+
+| Ancien | Nouveau |
+|--------|---------|
+| `BOOST_ENABLED` | `AI_TOOLS_ENABLED` |
+| `BOOST_BROWSER_LOGS_WATCHER` | `AI_TOOLS_BROWSER_LOGS_WATCHER` |
+| `BOOST_PHP_EXECUTABLE_PATH` | `AI_TOOLS_PHP_EXECUTABLE_PATH` |
+| `BOOST_COMPOSER_EXECUTABLE_PATH` | `AI_TOOLS_COMPOSER_EXECUTABLE_PATH` |
+| `BOOST_NPM_EXECUTABLE_PATH` | `AI_TOOLS_NPM_EXECUTABLE_PATH` |
+| `BOOST_VENDOR_BIN_EXECUTABLE_PATH` | `AI_TOOLS_VENDOR_BIN_EXECUTABLE_PATH` |
+
+### Etape 7 : Commandes Artisan (`src/Console/`)
+
+| Fichier | Ancien | Nouveau |
+|---------|--------|---------|
+| `StartCommand.php` | `boost:mcp` | `ai-tools:mcp` |
+| `InstallCommand.php` | `boost:install` | `ai-tools:install` |
+| `UpdateCommand.php` | `boost:update` | `ai-tools:update` |
+| `ExecuteToolCommand.php` | `boost:execute-tool` | `ai-tools:execute-tool` |
+| `AddSkillCommand.php` | `boost:add-skill` | `ai-tools:add-skill` |
+
+### Etape 8 : Nom du serveur MCP
+
+```diff
+# src/BoostServiceProvider.php (ou nouveau nom)
+- Mcp::local('laravel-boost', Boost::class);
++ Mcp::local('acme-ai-tools', AiToolsServer::class);
+
+# src/Console/StartCommand.php
+- Artisan::call('mcp:start laravel-boost');
++ Artisan::call('mcp:start acme-ai-tools');
+
+# src/Mcp/Boost.php (ou nouveau nom)
+- protected string $name = 'Laravel Boost';
++ protected string $name = 'Acme AI Tools';
+```
+
+### Etape 9 : Route et nom de route
+
+```diff
+# src/BoostServiceProvider.php
+- Route::post('/_boost/browser-logs', ...)->name('boost.browser-logs');
++ Route::post('/_ai-tools/browser-logs', ...)->name('ai-tools.browser-logs');
+
+# src/Services/BrowserLogger.php
+- route('boost.browser-logs')
++ route('ai-tools.browser-logs')
+- '/_boost/browser-logs'
++ '/_ai-tools/browser-logs'
+```
+
+### Etape 10 : Directive Blade
+
+```diff
+# src/BoostServiceProvider.php
+- $bladeCompiler->directive('boostJs', ...);
++ $bladeCompiler->directive('aiToolsJs', ...);
+```
+
+> Les utilisateurs devront remplacer `@boostJs` par `@aiToolsJs` dans leurs vues.
+
+### Etape 11 : Cle de cache
+
+```diff
+# src/BoostServiceProvider.php
+- $cacheKey = 'boost.roster.scan';
++ $cacheKey = 'ai-tools.roster.scan';
+```
+
+### Etape 12 : Canal de log
+
+```diff
+# src/BoostServiceProvider.php
+- 'logging.channels.browser' => [...]
++ 'logging.channels.browser' => [...]  // Peut rester 'browser' car non lie au nom du package
+```
+
+### Etape 13 : Tests d'architecture (`tests/ArchTest.php`)
+
+```diff
+- ->expect('Laravel\Boost')
++ ->expect('Acme\AiTools')
+
+- ->toBeUsedIn('Laravel\Boost')
++ ->toBeUsedIn('Acme\AiTools')
+```
+
+### Etape 14 : Documentation
+
+Mettre a jour les references dans :
+- `README.md` : logos, badges, texte
+- `CHANGELOG.md` : URLs GitHub
+- `UPGRADE.md` : noms de commandes
+- `CLAUDE.md` : noms de classes et chemins
+- `CONTRIBUTING_GUIDE.md` : ce fichier
+
+### Checklist de verification apres renommage
+
+```bash
+# 1. Verifier qu'aucune reference a l'ancien nom ne subsiste
+grep -rn "laravel/boost" . --include="*.php" --include="*.json" --include="*.md"
+grep -rn "Laravel\\\\Boost" . --include="*.php" --include="*.json"
+grep -rn "'boost\." src/ --include="*.php"
+grep -rn "boost:" src/Console/ --include="*.php"
+
+# 2. Regenerer l'autoload
+composer dump-autoload
+
+# 3. Lancer les tests
+composer check
+```

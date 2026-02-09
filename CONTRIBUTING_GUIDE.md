@@ -1,0 +1,872 @@
+# Guide d'implementation de nouvelles fonctionnalites - Laravel Boost
+
+Ce guide documente pas a pas les patterns a suivre pour ajouter de nouvelles fonctionnalites au package Laravel Boost, en s'appuyant sur les conventions existantes du code source.
+
+---
+
+## Table des matieres
+
+1. [Ajouter un outil MCP](#1-ajouter-un-outil-mcp)
+2. [Ajouter un agent IA](#2-ajouter-un-agent-ia)
+3. [Ajouter des guidelines pour un package](#3-ajouter-des-guidelines-pour-un-package)
+4. [Ajouter un prompt MCP](#4-ajouter-un-prompt-mcp)
+5. [Ajouter une ressource MCP](#5-ajouter-une-ressource-mcp)
+6. [Ajouter un skill](#6-ajouter-un-skill)
+7. [Ajouter une commande Artisan](#7-ajouter-une-commande-artisan)
+8. [Ajouter un middleware ou service](#8-ajouter-un-middleware-ou-service)
+
+---
+
+## 1. Ajouter un outil MCP
+
+Les outils MCP permettent aux agents IA d'interagir avec l'application Laravel (requetes BDD, routes, config, etc.).
+
+### Etape 1 : Creer la classe
+
+Creer un fichier dans `src/Mcp/Tools/MonOutil.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Laravel\Boost\Mcp\Tools;
+
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\JsonSchema\Types\Type;
+use Laravel\Mcp\Request;
+use Laravel\Mcp\Response;
+use Laravel\Mcp\Server\Tool;
+use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
+
+#[IsReadOnly] // Ajouter si l'outil ne modifie aucun etat
+class MonOutil extends Tool
+{
+    protected string $description = 'Description claire de ce que fait l\'outil';
+
+    /**
+     * @return array<string, Type>
+     */
+    public function schema(JsonSchema $schema): array
+    {
+        return [
+            'param_requis' => $schema
+                ->string()
+                ->description('Description du parametre')
+                ->required(),
+            'param_optionnel' => $schema
+                ->boolean()
+                ->description('Description du parametre optionnel'),
+        ];
+    }
+
+    public function handle(Request $request): Response
+    {
+        $param = $request->get('param_requis');
+        $optionnel = $request->get('param_optionnel', false);
+
+        // Logique metier...
+
+        return Response::json(['resultat' => $data]);
+        // OU Response::text('Texte markdown');
+        // OU Response::error('Message d\'erreur');
+    }
+}
+```
+
+**Elements cles :**
+- Etendre `Laravel\Mcp\Server\Tool`
+- `$description` (obligatoire) : decrit l'outil pour l'agent IA
+- `schema()` : definit les parametres d'entree avec leur type et description
+- `handle()` : recoit un `Request`, retourne un `Response`
+- `#[IsReadOnly]` : annotation pour les outils en lecture seule
+
+**Injection de dependances :** Le constructeur supporte l'injection via le container Laravel :
+
+```php
+public function __construct(protected Roster $roster)
+{
+    //
+}
+```
+
+### Etape 2 : Enregistrer l'outil
+
+Ajouter la classe dans la methode `discoverTools()` de `src/Mcp/Boost.php` :
+
+```php
+protected function discoverTools(): array
+{
+    return $this->filterPrimitives([
+        // ... outils existants ...
+        MonOutil::class,  // <-- Ajouter ici
+    ], 'tools');
+}
+```
+
+### Etape 3 : Ecrire les tests
+
+Creer `tests/Feature/Mcp/Tools/MonOutilTest.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Laravel\Boost\Mcp\Tools\MonOutil;
+use Laravel\Mcp\Request;
+
+test('it returns expected data', function (): void {
+    $tool = new MonOutil;
+    $response = $tool->handle(new Request(['param_requis' => 'valeur']));
+
+    expect($response)
+        ->isToolResult()
+        ->toolHasNoError()
+        ->toolJsonContentToMatchArray(['resultat' => 'valeur_attendue']);
+});
+
+test('it returns error when param is invalid', function (): void {
+    $tool = new MonOutil;
+    $response = $tool->handle(new Request(['param_requis' => 'invalide']));
+
+    expect($response)
+        ->isToolResult()
+        ->toolHasError();
+});
+```
+
+**Expectations personnalisees disponibles :**
+- `isToolResult()` : verifie que c'est une `Response`
+- `toolHasNoError()` / `toolHasError()` : verifie le statut
+- `toolTextContains('texte')` : verifie le contenu texte
+- `toolTextDoesNotContain('texte')` : verifie l'absence
+- `toolJsonContent(fn ($data) => ...)` : assertion sur le JSON parse
+- `toolJsonContentToMatchArray([...])` : correspondance partielle
+
+### Etape 4 : Verifier
+
+```bash
+composer test -- --filter=MonOutilTest
+composer lint
+```
+
+### Configuration optionnelle
+
+L'outil peut etre exclu ou inclus via `config/boost.php` (publiable dans l'app hote) :
+
+```php
+'mcp' => [
+    'tools' => [
+        'exclude' => [MonOutil::class],  // Exclure
+        'include' => [AutreOutil::class], // Inclure un outil externe
+    ],
+],
+```
+
+### Execution en sous-processus
+
+Les outils sont executes dans des sous-processus PHP isoles via `ToolExecutor`. Cela signifie :
+- Chaque execution demarre un processus PHP frais
+- Aucun etat partage entre les executions
+- Timeout configurable (defaut : 180s, max : 600s)
+- Les modifications de code sont prises en compte entre les appels
+
+---
+
+## 2. Ajouter un agent IA
+
+Un agent represente un assistant IA (IDE ou CLI) que Boost peut configurer.
+
+### Etape 1 : Creer la classe
+
+Creer `src/Install/Agents/MonAgent.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Laravel\Boost\Install\Agents;
+
+use Laravel\Boost\Contracts\SupportsGuidelines;
+use Laravel\Boost\Contracts\SupportsMcp;
+use Laravel\Boost\Contracts\SupportsSkills;
+use Laravel\Boost\Install\Enums\McpInstallationStrategy;
+use Laravel\Boost\Install\Enums\Platform;
+
+class MonAgent extends Agent implements SupportsGuidelines, SupportsMcp, SupportsSkills
+{
+    public function name(): string
+    {
+        return 'mon_agent';  // Identifiant snake_case unique
+    }
+
+    public function displayName(): string
+    {
+        return 'Mon Agent';  // Nom affiche a l'utilisateur
+    }
+
+    public function systemDetectionConfig(Platform $platform): array
+    {
+        return match ($platform) {
+            Platform::Darwin, Platform::Linux => [
+                'command' => 'command -v monagent',
+            ],
+            Platform::Windows => [
+                'command' => 'where monagent 2>nul',
+            ],
+        };
+    }
+
+    public function projectDetectionConfig(): array
+    {
+        return [
+            'paths' => ['.monagent'],
+            'files' => ['MONAGENT.md'],
+        ];
+    }
+
+    public function mcpInstallationStrategy(): McpInstallationStrategy
+    {
+        return McpInstallationStrategy::FILE;
+        // Alternatives : McpInstallationStrategy::SHELL, McpInstallationStrategy::NONE
+    }
+
+    public function mcpConfigPath(): string
+    {
+        return '.monagent/mcp.json';
+    }
+
+    public function guidelinesPath(): string
+    {
+        return config('boost.agents.mon_agent.guidelines_path', 'MONAGENT.md');
+    }
+
+    public function skillsPath(): string
+    {
+        return config('boost.agents.mon_agent.skills_path', '.monagent/skills');
+    }
+}
+```
+
+**Methodes abstraites obligatoires :**
+- `name()` : identifiant unique en snake_case
+- `displayName()` : nom lisible
+- `systemDetectionConfig(Platform)` : comment detecter l'agent sur le systeme
+- `projectDetectionConfig()` : comment detecter l'agent dans le projet
+
+**Contrats optionnels :**
+
+| Contrat | Methodes a implementer | Usage |
+|---------|------------------------|-------|
+| `SupportsGuidelines` | `guidelinesPath()`, `frontmatter()`, `transformGuidelines()` | L'agent recoit des guidelines |
+| `SupportsMcp` | `useAbsolutePathForMcp()`, `getPhpPath()`, `getArtisanPath()`, `installMcp()` | L'agent supporte le protocole MCP |
+| `SupportsSkills` | `skillsPath()` | L'agent supporte les skills |
+
+> Note : `frontmatter()`, `transformGuidelines()`, `useAbsolutePathForMcp()`, `getPhpPath()`, `getArtisanPath()` et `installMcp()` ont des implementations par defaut dans la classe `Agent`. Il suffit de les surcharger si necessaire.
+
+**Methodes surchargeables :**
+- `frontmatter(): bool` - Retourner `true` si le fichier de guidelines necessite du frontmatter YAML (ex: Cursor)
+- `transformGuidelines(string $markdown): string` - Transformer le markdown genere (ex: Gemini echappe les `@`)
+- `useAbsolutePathForMcp(): bool` - Utiliser des chemins absolus pour le MCP (ex: Junie)
+- `mcpConfigKey(): string` - Cle de configuration MCP (defaut : `mcpServers`)
+- `defaultMcpConfig(): array` - Configuration MCP par defaut
+- `shellMcpCommand(): ?string` - Commande shell pour l'installation MCP (strategie SHELL)
+
+### Etape 2 : Enregistrer l'agent
+
+Ajouter dans le tableau `$agents` de `src/BoostManager.php` :
+
+```php
+private array $agents = [
+    // ... agents existants ...
+    'mon_agent' => MonAgent::class,  // <-- Ajouter ici
+];
+```
+
+### Etape 3 : Ecrire les tests
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Laravel\Boost\Install\Agents\MonAgent;
+use Laravel\Boost\Install\Detection\DetectionStrategyFactory;
+
+test('MonAgent returns correct name', function (): void {
+    $factory = Mockery::mock(DetectionStrategyFactory::class);
+    $agent = new MonAgent($factory);
+
+    expect($agent->name())->toBe('mon_agent')
+        ->and($agent->displayName())->toBe('Mon Agent');
+});
+
+test('MonAgent returns relative php path by default', function (): void {
+    config(['boost.executable_paths.php' => null]);
+    $factory = Mockery::mock(DetectionStrategyFactory::class);
+    $agent = new MonAgent($factory);
+
+    expect($agent->getPhpPath())->toBe('php');
+});
+```
+
+### Etape 4 : Verifier
+
+```bash
+composer test -- --filter=MonAgent
+composer lint
+```
+
+---
+
+## 3. Ajouter des guidelines pour un package
+
+Les guidelines fournissent du contexte specifique a un package aux agents IA.
+
+### Etape 1 : Creer la structure de repertoires
+
+```
+.ai/
+  mon-package/
+    core.blade.php              # Guidelines de base (toutes versions)
+    1/
+      core.blade.php            # Guidelines specifiques a la v1
+    2/
+      core.blade.php            # Guidelines specifiques a la v2
+      skill/
+        mon-skill/
+          SKILL.blade.php       # Skill associe a la v2
+          SKILL.md              # Documentation du skill
+```
+
+Le nom du repertoire est le nom du package composer normalise (`vendor/package` -> `package`).
+
+### Etape 2 : Ecrire le template Blade
+
+`.ai/mon-package/core.blade.php` :
+
+```blade
+@php
+/** @var \Laravel\Boost\Install\GuidelineAssist $assist */
+@endphp
+# Mon Package
+
+- Description du package et son role dans l'application.
+- Conventions importantes a suivre.
+
+@if($assist->hasPackage(\Laravel\Roster\Enums\Packages::SOME_PACKAGE))
+## Integration avec Some Package
+
+- Instructions specifiques quand les deux packages sont utilises ensemble.
+@endif
+```
+
+**Variables disponibles dans les templates :**
+- `$assist` (`GuidelineAssist`) : acces aux packages installes, versions, chemins, configuration
+
+**Methodes utiles de `$assist` :**
+- `$assist->hasPackage(Packages::NAME)` : verifie si un package est installe
+- `$assist->hasSkillsEnabled()` : verifie si les skills sont actives
+- `$assist->skills()` : collection des skills disponibles
+- `$assist->inertia()->pagesDirectory()` : repertoire des pages Inertia
+
+**Directives speciales :**
+
+```blade
+@boostsnippet('Nom de l\'exemple', 'php')
+// Code qui sera preserve tel quel, sans interpretation Blade
+$variable = "valeur";
+@endboostsnippet
+```
+
+`@boostsnippet` protege les blocs de code de l'interpretation Blade. Les backticks et balises `<?php` sont aussi automatiquement proteges.
+
+### Etape 3 : Decouverte automatique
+
+Les guidelines sont decouvertes automatiquement par `GuidelineComposer` :
+- Les guidelines dans `.ai/` du package Boost sont integrees directement
+- Les packages tiers peuvent fournir leurs propres guidelines dans `.ai/` de leur repertoire
+- Les guidelines conditionnelles sont filtrees selon les packages detectes par `Roster`
+
+### Etape 4 : Verifier
+
+```bash
+php artisan boost:install --guidelines
+```
+
+---
+
+## 4. Ajouter un prompt MCP
+
+Les prompts MCP sont des instructions pre-construites que les agents IA peuvent invoquer.
+
+### Etape 1 : Creer la structure
+
+```
+src/Mcp/Prompts/
+  MonPrompt/
+    MonPrompt.php                # Classe du prompt
+    mon-prompt.blade.php         # Contenu du prompt (template Blade)
+```
+
+### Etape 2 : Creer la classe
+
+`src/Mcp/Prompts/MonPrompt/MonPrompt.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Laravel\Boost\Mcp\Prompts\MonPrompt;
+
+use Laravel\Boost\Concerns\RendersBladeGuidelines;
+use Laravel\Mcp\Response;
+use Laravel\Mcp\Server\Prompt;
+
+class MonPrompt extends Prompt
+{
+    use RendersBladeGuidelines;
+
+    protected string $name = 'mon-prompt';
+
+    protected string $title = 'mon_prompt';
+
+    protected string $description = 'Description de ce que fait ce prompt et quand l\'utiliser.';
+
+    public function handle(): Response
+    {
+        $content = $this->renderBladeFile(__DIR__.'/mon-prompt.blade.php');
+
+        return Response::text($content);
+    }
+}
+```
+
+### Etape 3 : Creer le template Blade
+
+`src/Mcp/Prompts/MonPrompt/mon-prompt.blade.php` :
+
+```blade
+# Instructions pour Mon Prompt
+
+## Objectif
+
+Decrire l'objectif du prompt ici.
+
+## Regles
+
+- Regle 1
+- Regle 2
+
+@boostsnippet('Exemple', 'php')
+// Code d'exemple
+@endboostsnippet
+```
+
+### Etape 4 : Enregistrer le prompt
+
+Ajouter dans `discoverPrompts()` de `src/Mcp/Boost.php` :
+
+```php
+protected function discoverPrompts(): array
+{
+    $availablePrompts = [
+        LaravelCodeSimplifier::class,
+        UpgradeLivewireV4::class,
+        MonPrompt::class,  // <-- Ajouter ici
+        ...$this->discoverThirdPartyPrimitives(Prompt::class),
+    ];
+
+    return $this->filterPrimitives($availablePrompts, 'prompts');
+}
+```
+
+### Etape 5 : Ecrire les tests
+
+`tests/Feature/Mcp/Prompts/MonPromptTest.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Laravel\Boost\Mcp\Prompts\MonPrompt\MonPrompt;
+
+beforeEach(function (): void {
+    $this->prompt = new MonPrompt;
+});
+
+test('it has correct name', function (): void {
+    expect($this->prompt->name())->toBe('mon-prompt');
+});
+
+test('it has a description', function (): void {
+    expect($this->prompt->description())->not->toBeEmpty();
+});
+
+test('it returns valid response', function (): void {
+    $response = $this->prompt->handle();
+
+    expect($response)
+        ->isToolResult()
+        ->toolHasNoError()
+        ->toolTextContains('Instructions pour Mon Prompt');
+});
+```
+
+### Etape 6 : Verifier
+
+```bash
+composer test -- --filter=MonPromptTest
+composer lint
+```
+
+---
+
+## 5. Ajouter une ressource MCP
+
+Les ressources MCP exposent des donnees persistantes que les agents IA peuvent consulter.
+
+### Etape 1 : Creer la classe
+
+`src/Mcp/Resources/MonResource.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Laravel\Boost\Mcp\Resources;
+
+use Laravel\Mcp\Response;
+use Laravel\Mcp\Server\Resource;
+
+class MonResource extends Resource
+{
+    protected string $description = 'Description de la ressource et de son contenu.';
+
+    protected string $uri = 'file://instructions/mon-resource.md';
+
+    protected string $mimeType = 'text/markdown';
+
+    public function handle(): Response
+    {
+        // Option A : Contenu direct
+        return Response::json(['data' => 'valeur']);
+
+        // Option B : Via ToolExecutor (deleguer a un outil existant)
+        // $response = $this->toolExecutor->execute(MonOutil::class);
+        // return $response;
+
+        // Option C : Via template Blade (utiliser le trait RendersBladeGuidelines)
+        // $content = $this->renderBladeFile(__DIR__.'/mon-resource.blade.php');
+        // return Response::text($content);
+    }
+}
+```
+
+**Proprietes obligatoires :**
+- `$description` : description de la ressource
+- `$uri` : URI canonique (format `file://instructions/nom.md`)
+- `$mimeType` : type MIME (`text/markdown`, `text/plain`, `application/json`)
+
+### Etape 2 : Enregistrer la ressource
+
+Ajouter dans `discoverResources()` de `src/Mcp/Boost.php` :
+
+```php
+protected function discoverResources(): array
+{
+    $availableResources = [
+        Resources\ApplicationInfo::class,
+        Resources\MonResource::class,  // <-- Ajouter ici
+        ...$this->discoverThirdPartyPrimitives(Resource::class),
+    ];
+
+    return $this->filterPrimitives($availableResources, 'resources');
+}
+```
+
+### Etape 3 : Ecrire les tests et verifier
+
+Meme pattern que les outils et prompts. Utiliser les expectations `isToolResult()`, etc.
+
+```bash
+composer test -- --filter=MonResourceTest
+composer lint
+```
+
+---
+
+## 6. Ajouter un skill
+
+Les skills sont des capacites specialisees que les agents peuvent activer selon le contexte.
+
+### Etape 1 : Creer le fichier skill
+
+`.ai/mon-package/2/skill/mon-skill/SKILL.blade.php` :
+
+```blade
+---
+name: mon-skill
+description: "Activer ce skill quand l'utilisateur travaille avec [contexte specifique]. Fournit des patterns et conventions pour [usage]."
+license: MIT
+metadata:
+  author: laravel
+---
+
+# Mon Skill
+
+## Quand activer
+
+Activer ce skill quand :
+- L'utilisateur travaille avec [contexte]
+- L'utilisateur mentionne [mots-cles]
+
+## Conventions
+
+- Convention 1
+- Convention 2
+
+## Exemples
+
+@boostsnippet('Exemple basique', 'php')
+// Code d'exemple
+@endboostsnippet
+```
+
+**Frontmatter obligatoire :**
+- `name` : identifiant en kebab-case
+- `description` : description de quand activer le skill et ce qu'il fait
+
+**Placement :**
+- Skills lies a un package : `.ai/{package}/{version}/skill/{skill-name}/SKILL.blade.php`
+- Skills generiques : `.ai/skills/{skill-name}/SKILL.blade.php`
+
+### Etape 2 : Decouverte automatique
+
+Les skills sont automatiquement decouverts par `SkillComposer` qui scanne les repertoires `.ai/` :
+- Decouverte dans le repertoire `.ai/` de Boost
+- Decouverte dans les packages tiers avec des guidelines Boost
+- Decouverte dans les skills personnalises de l'utilisateur
+
+Le `SkillWriter` ecrit les skills dans le repertoire defini par `$agent->skillsPath()` pour chaque agent configure.
+
+### Etape 3 : Verifier
+
+```bash
+php artisan boost:install --skills
+```
+
+---
+
+## 7. Ajouter une commande Artisan
+
+### Etape 1 : Creer la classe
+
+`src/Console/MaCommand.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Laravel\Boost\Console;
+
+use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
+
+#[AsCommand('boost:ma-commande', 'Description courte de la commande')]
+class MaCommand extends Command
+{
+    public function handle(): int
+    {
+        // Logique de la commande...
+
+        $this->info('Commande executee avec succes.');
+
+        return self::SUCCESS;
+        // OU self::FAILURE en cas d'erreur
+    }
+}
+```
+
+**Regles architecturales (appliquees par `tests/ArchTest.php`) :**
+- La classe DOIT etendre `Illuminate\Console\Command`
+- Le nom de classe DOIT avoir le suffixe `Command`
+- Namespace : `Laravel\Boost\Console`
+
+**Avec options et injection de dependances :**
+
+```php
+#[AsCommand('boost:ma-commande', 'Description')]
+class MaCommand extends Command
+{
+    protected $signature = 'boost:ma-commande
+        {--option-a : Description de l\'option A}
+        {argument : Description de l\'argument}';
+
+    public function handle(MonService $service): int
+    {
+        $optionA = $this->option('option-a');
+        $arg = $this->argument('argument');
+
+        // ...
+
+        return self::SUCCESS;
+    }
+}
+```
+
+### Etape 2 : Enregistrer la commande
+
+Ajouter dans `registerCommands()` de `src/BoostServiceProvider.php` :
+
+```php
+protected function registerCommands(): void
+{
+    if ($this->app->runningInConsole()) {
+        $this->commands([
+            Console\StartCommand::class,
+            Console\InstallCommand::class,
+            Console\UpdateCommand::class,
+            Console\ExecuteToolCommand::class,
+            Console\AddSkillCommand::class,
+            Console\MaCommand::class,  // <-- Ajouter ici
+        ]);
+    }
+}
+```
+
+### Etape 3 : Ecrire les tests
+
+```php
+<?php
+
+declare(strict_types=1);
+
+test('boost:ma-commande executes successfully', function (): void {
+    $this->artisan('boost:ma-commande')
+        ->assertSuccessful();
+});
+
+test('boost:ma-commande with options', function (): void {
+    $this->artisan('boost:ma-commande', ['--option-a' => true])
+        ->assertSuccessful()
+        ->expectsOutput('Resultat attendu');
+});
+```
+
+### Etape 4 : Verifier
+
+```bash
+composer test -- --filter=MaCommandTest
+composer lint
+```
+
+---
+
+## 8. Ajouter un middleware ou service
+
+### Middleware
+
+**Etape 1 :** Creer `src/Middleware/MonMiddleware.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Laravel\Boost\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class MonMiddleware
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        /** @var Response $response */
+        $response = $next($request);
+
+        // Modifier la reponse apres traitement...
+
+        return $response;
+    }
+}
+```
+
+**Etape 2 :** Enregistrer dans `BoostServiceProvider::boot()` :
+
+```php
+// Dans une methode dediee ou directement dans boot()
+$this->app->booted(function () use ($router): void {
+    $router->pushMiddlewareToGroup('web', MonMiddleware::class);
+});
+```
+
+### Service
+
+**Etape 1 :** Creer `src/Services/MonService.php` :
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Laravel\Boost\Services;
+
+class MonService
+{
+    public function maMethode(): string
+    {
+        // Logique...
+    }
+}
+```
+
+**Etape 2 :** Enregistrer dans `BoostServiceProvider::register()` :
+
+```php
+$this->app->singleton(MonService::class, fn (): MonService => new MonService);
+```
+
+Le service est ensuite injectable dans les constructeurs des outils MCP, commandes, etc.
+
+---
+
+## Rappels importants
+
+### Conventions de code obligatoires
+
+- **`declare(strict_types=1)`** dans tous les fichiers PHP (test d'architecture)
+- **Pas de `dd()`, `dump()`, `var_dump()`, `die()`, `ray()`** (test d'architecture)
+- **Pas d'appels directs a `env()`** sauf dans `BoostServiceProvider` (test d'architecture)
+- Style **Laravel Pint** avec comparaisons strictes (`===`)
+- **PHPStan** niveau 5
+
+### Commandes de verification
+
+```bash
+composer check     # Lint complet + tests
+composer test      # Tests uniquement
+composer lint      # Pint + PHPStan + Rector (avec corrections)
+composer test:lint # Verification sans modification
+composer test:types # PHPStan seul
+```
+
+### Structure de test standard
+
+```bash
+composer test -- --filter=NomDuTest   # Test specifique
+composer test -- tests/Unit           # Suite de tests
+composer test -- tests/Feature/Mcp   # Sous-repertoire
+```
+
+### Pattern de filtrage MCP
+
+Tous les primitives MCP (outils, prompts, ressources) supportent le filtrage via la configuration `boost.mcp.{type}.exclude` et `boost.mcp.{type}.include`. Ce filtrage est applique automatiquement par `Boost::filterPrimitives()`.

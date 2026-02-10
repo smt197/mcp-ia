@@ -1048,14 +1048,16 @@ git push origin v1.0.0
 ```
 
 **Etape 3 :** Enregistrer le package sur [packagist.org](https://packagist.org) :
-- Se connecter avec son compte GitHub
-- Soumettre l'URL du depot
-- Packagist detecte automatiquement le `composer.json`
+- Se connecter avec son compte GitHub.
+- Se rendre sur la page de soumission : [https://packagist.org/packages/submit](https://packagist.org/packages/submit).
+- Saisir l'URL du dépôt (ex: `https://github.com/thumanics/laravel-boost.git`).
+- Cliquer sur le bouton **"Check"** pour valider la structure.
+- Si tout est correct, cliquer sur **"Submit"**. Packagist détectera automatiquement les informations du `composer.json`.
 
 **Etape 4 :** Le package est installable par les utilisateurs :
 
 ```bash
-composer require votre-vendor/votre-package --dev
+composer require thumanics/laravel-boost --dev
 ```
 
 ### Publier sur un depot Composer prive (Satis, Private Packagist, etc.)

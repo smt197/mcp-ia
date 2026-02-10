@@ -11,6 +11,7 @@
 </p>
 
 ## Introduction
+resurex-boost
 
 Laravel Boost accelerates AI-assisted development by providing the essential context and structure that AI needs to generate high-quality, Laravel-specific code.
 

@@ -1057,7 +1057,7 @@ git push origin v1.0.0
 **Etape 4 :** Le package est installable par les utilisateurs :
 
 ```bash
-composer require votre-vendor/votre-package --dev
+composer require thumanics/laravel-boost --dev
 ```
 
 ### Publier sur un depot Composer prive (Satis, Private Packagist, etc.)

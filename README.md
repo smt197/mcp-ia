@@ -10,6 +10,7 @@
 <a href="https://packagist.org/packages/laravel/boost"><img src="https://img.shields.io/packagist/l/laravel/boost?v=1" alt="License"></a>
 </p>
 
+## Official Documentation
 
 Documentation for Laravel Boost can be found on the [Laravel website](https://laravel.com/docs/boost).
 

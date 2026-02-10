@@ -1,5 +1,6 @@
 # Laravel Boost
 - Laravel Boost is an MCP server that comes with powerful tools designed specifically for this application. Use them.
+- **GUIDE D'UTILISATION** : Consultez le guide détaillé dans [.ai/boost/usage.blade.php](file:///.ai/boost/usage.blade.php) pour des exemples concrets d'utilisation d'outils comme `tinker`, `search-docs` et `database-schema`.
 
 ## Artisan
 - Use the `list-artisan-commands` tool when you need to call an Artisan command to double-check the available parameters.

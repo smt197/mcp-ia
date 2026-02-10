@@ -10,6 +10,10 @@
 <a href="https://packagist.org/packages/laravel/boost"><img src="https://img.shields.io/packagist/l/laravel/boost?v=1" alt="License"></a>
 </p>
 
+## Introduction
+
+Laravel Boost accelerates AI-assisted development by providing the essential context and structure that AI needs to generate high-quality, Laravel-specific code.
+
 ## Official Documentation
 
 Documentation for Laravel Boost can be found on the [Laravel website](https://laravel.com/docs/boost).

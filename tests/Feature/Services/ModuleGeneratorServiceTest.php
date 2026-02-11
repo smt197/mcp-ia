@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Laravel\Boost\Services\ModuleGeneratorService;
 use Illuminate\Support\Facades\File;
+use Laravel\Boost\Services\ModuleGeneratorService;
 
 beforeEach(function (): void {
     // Clean up any test files that might exist
@@ -26,6 +26,7 @@ beforeEach(function (): void {
 
     // Clean up migrations
     $migrations = File::glob(database_path('migrations/*_create_test_products_table.php'));
+
     foreach ($migrations as $migration) {
         File::delete($migration);
     }
@@ -52,6 +53,7 @@ afterEach(function (): void {
 
     // Clean up migrations
     $migrations = File::glob(database_path('migrations/*_create_test_products_table.php'));
+
     foreach ($migrations as $migration) {
         File::delete($migration);
     }

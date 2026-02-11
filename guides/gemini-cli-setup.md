@@ -10,7 +10,7 @@ Le serveur MCP `laravel-boost` a été ajouté à votre `settings.json` :
     "laravel-boost": {
       "command": "C:\\laragon\\bin\\php\\php-8.3.17-Win32-vs16-x64\\php.exe",
       "args": ["artisan", "mcp:start", "laravel-boost"],
-      "cwd": "C:\\laragon\\www\\ressurex-backend"
+      "cwd": "C:\\laragon\\www\\test-package"
     }
   }
 }

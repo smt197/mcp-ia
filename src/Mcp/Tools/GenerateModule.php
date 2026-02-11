@@ -32,15 +32,16 @@ class GenerateModule extends Tool
                 ->required(),
             'fields' => $schema->array()
                 ->items(
-                    $schema->object()
-                        ->properties([
-                            'name' => $schema->string()->description('Field name (e.g., "title", "price", "description")')->required(),
-                            'type' => $schema->string()
-                                ->enum(['string', 'number', 'boolean', 'Date', 'File', 'textarea', 'quill-editor', 'email', 'password'])
-                                ->description('Field type. Use "File" for file uploads (requires Spatie Media Library).')
-                                ->required(),
-                            'required' => $schema->boolean()->description('Whether the field is required')->required(),
-                        ])
+                ->items(
+                    $schema->object([
+                        'name' => $schema->string()->description('Field name (e.g., "title", "price", "description")')->required(),
+                        'type' => $schema->string()
+                            ->enum(['string', 'number', 'boolean', 'Date', 'File', 'textarea', 'quill-editor', 'email', 'password'])
+                            ->description('Field type. Use "File" for file uploads (requires Spatie Media Library).')
+                            ->required(),
+                        'required' => $schema->boolean()->description('Whether the field is required')->required(),
+                    ])
+                )
                 )
                 ->description('Array of field definitions for the module')
                 ->required(),

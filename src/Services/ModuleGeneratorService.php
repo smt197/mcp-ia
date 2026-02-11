@@ -694,7 +694,7 @@ class {$this->studlySingular}Seeder extends Seeder
 
         $content = File::get($routesPath);
 
-        $routeLine = "    Orion::resource('{$this->moduleName}', {$this->studlySingular}Controller::class);";
+        $routeLine = "Orion::resource('{$this->moduleName}', {$this->studlySingular}Controller::class);";
         $importLine = "use App\\Http\\Controllers\\{$this->studlySingular}Controller;";
 
         // Add Orion import if not exists

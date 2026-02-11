@@ -32,7 +32,7 @@ class GenerateModule extends Tool
                 ->required(),
             'fields' => $schema->array()
                 ->items(
-                ->items(
+
                     $schema->object([
                         'name' => $schema->string()->description('Field name (e.g., "title", "price", "description")')->required(),
                         'type' => $schema->string()

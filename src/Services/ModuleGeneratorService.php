@@ -164,6 +164,7 @@ class {$this->studlySingular} extends Model{$implements}
 ";
 
         $path = app_path("Models/{$this->studlySingular}.php");
+        File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
         return $path;
@@ -201,6 +202,7 @@ return new class extends Migration
 ";
 
         $path = database_path("migrations/{$timestamp}_create_{$tableName}_table.php");
+        File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
         return $path;
@@ -239,6 +241,7 @@ class {$this->studlySingular}Factory extends Factory
 ";
 
         $path = database_path("factories/{$this->studlySingular}Factory.php");
+        File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
         return $path;
@@ -314,6 +317,7 @@ class {$this->studlySingular}Controller extends Controller
 ";
 
         $path = app_path("Http/Controllers/{$this->studlySingular}Controller.php");
+        File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
         return $path;
@@ -450,6 +454,7 @@ class {$this->studlySingular}Resource extends JsonResource
 ";
 
         $path = app_path("Http/Resources/{$this->studlySingular}Resource.php");
+        File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
         return $path;
@@ -553,6 +558,7 @@ class {$this->studlySingular}Request extends Request
 ";
 
         $path = app_path("Http/Requests/{$this->studlySingular}Request.php");
+        File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
         return $path;
@@ -645,6 +651,7 @@ class {$this->studlySingular}Policy
 ";
 
         $path = app_path("Policies/{$this->studlySingular}Policy.php");
+        File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
         return $path;
@@ -671,6 +678,7 @@ class {$this->studlySingular}Seeder extends Seeder
 ";
 
         $path = database_path("seeders/{$this->studlySingular}Seeder.php");
+        File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
         return $path;

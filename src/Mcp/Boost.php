@@ -15,6 +15,7 @@ use Laravel\Boost\Mcp\Tools\BrowserLogs;
 use Laravel\Boost\Mcp\Tools\DatabaseConnections;
 use Laravel\Boost\Mcp\Tools\DatabaseQuery;
 use Laravel\Boost\Mcp\Tools\DatabaseSchema;
+use Laravel\Boost\Mcp\Tools\GenerateModule;
 use Laravel\Boost\Mcp\Tools\GetAbsoluteUrl;
 use Laravel\Boost\Mcp\Tools\GetConfig;
 use Laravel\Boost\Mcp\Tools\LastError;
@@ -95,6 +96,7 @@ class Boost extends Server
             DatabaseConnections::class,
             DatabaseQuery::class,
             DatabaseSchema::class,
+            GenerateModule::class,
             GetAbsoluteUrl::class,
             GetConfig::class,
             LastError::class,

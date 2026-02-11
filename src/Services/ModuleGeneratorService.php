@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Laravel\Boost\Services;
 
 use Exception;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Str;
 
 class ModuleGeneratorService
 {
     // Ajoutez une propriété pour le conteneur d'application
     protected Application $app;
+
     protected string $moduleName;
 
     protected string $singularName;
@@ -823,6 +824,7 @@ class {$this->studlySingular}Seeder extends Seeder
     {
         // 1. Ensure Model exists
         $modelPath = $this->app->path('Models/Category.php');
+
         if (! File::exists($modelPath)) {
             $content = <<<'PHP'
 <?php
@@ -872,13 +874,13 @@ PHP;
         // Note: Creating migration file only if it doesn't exist is harder strictly by filename due to timestamps.
         // We will assume if the Model didn't exist, we probably need the migration, OR if the table doesn't exist.
         // For simplicity in this tool, we check if a file with 'create_categories_table' exists in migrations.
-        
+
         $migrationExists = ! empty(File::glob($this->app->databasePath('migrations/*_create_categories_table.php')));
-        
+
         if (! $migrationExists) {
             $timestamp = date('Y_m_d_His');
             $migrationPath = $this->app->databasePath("migrations/{$timestamp}_create_categories_table.php");
-            
+
             $content = <<<'PHP'
 <?php
 
@@ -919,6 +921,7 @@ PHP;
     {
         // 1. Ensure Model exists
         $modelPath = $this->app->path('Models/Menu.php');
+
         if (! File::exists($modelPath)) {
             $content = <<<'PHP'
 <?php
@@ -972,11 +975,11 @@ PHP;
 
         // 2. Ensure Migration exists
         $migrationExists = ! empty(File::glob($this->app->databasePath('migrations/*_create_menus_table.php')));
-        
+
         if (! $migrationExists) {
             $timestamp = date('Y_m_d_His');
             $migrationPath = $this->app->databasePath("migrations/{$timestamp}_create_menus_table.php");
-            
+
             $content = <<<'PHP'
 <?php
 
@@ -1019,11 +1022,11 @@ PHP;
         // ... (previous implementation) ...
         // 2. Ensure Migration exists
         $migrationExists = ! empty(File::glob($this->app->databasePath('migrations/*_create_module_managers_table.php')));
-        
+
         if (! $migrationExists) {
             $timestamp = date('Y_m_d_His');
             $migrationPath = $this->app->databasePath("migrations/{$timestamp}_create_module_managers_table.php");
-            
+
             $content = <<<'PHP'
 <?php
 
@@ -1113,7 +1116,7 @@ PHP;
         }
 
         $moduleName = $this->moduleName;
-        
+
         $exists = \App\Models\ModuleManager::where('module_name', $moduleName)->exists();
 
         if (! $exists) {

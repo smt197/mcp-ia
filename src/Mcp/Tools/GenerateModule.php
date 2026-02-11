@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Laravel\Boost\Mcp\Tools;
 
 use Exception;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
-use Laravel\Boost\Services\ModuleGeneratorService;
-use Illuminate\Contracts\Foundation\Application; // Importez l'application
+use Laravel\Boost\Services\ModuleGeneratorService; // Importez l'application
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;

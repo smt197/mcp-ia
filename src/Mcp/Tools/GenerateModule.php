@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Laravel\Boost\Mcp\Tools;
 
+use Exception;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Laravel\Boost\Services\ModuleGeneratorService;
@@ -81,6 +82,7 @@ class GenerateModule extends Tool
             }
 
             $validTypes = ['string', 'number', 'boolean', 'Date', 'File', 'textarea', 'quill-editor', 'email', 'password'];
+
             if (! in_array($field['type'], $validTypes, true)) {
                 return Response::error("Invalid field type '{$field['type']}' for field '{$field['name']}'. Valid types: ".implode(', ', $validTypes));
             }
@@ -113,6 +115,7 @@ class GenerateModule extends Tool
 
             // Format success response
             $filesGenerated = [];
+
             foreach ($result['files'] as $key => $path) {
                 if (is_string($path)) {
                     $filesGenerated[] = "- {$key}: {$path}";
@@ -142,7 +145,7 @@ class GenerateModule extends Tool
             }
 
             return Response::text($responseText);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return Response::error('Module generation failed: '.$e->getMessage()."\n\nStack trace:\n".$e->getTraceAsString());
         }
     }

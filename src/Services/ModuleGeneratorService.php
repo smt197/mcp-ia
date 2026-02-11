@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Laravel\Boost\Services;
 
+use Exception;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -68,7 +69,7 @@ class ModuleGeneratorService
                 'message' => 'Module generated successfully',
                 'files' => $results,
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [
                 'success' => false,
                 'message' => 'Module generation failed: '.$e->getMessage(),
@@ -334,6 +335,7 @@ class {$this->studlySingular}Controller extends Controller
     protected function getCasts(): string
     {
         $casts = [];
+
         foreach ($this->fields as $field) {
             if ($field['type'] === 'File') {
                 continue;
@@ -718,7 +720,7 @@ class {$this->studlySingular}Seeder extends Seeder
                 'message' => 'Migration executed successfully',
                 'output' => $output,
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [
                 'success' => false,
                 'message' => 'Migration failed: '.$e->getMessage(),
@@ -740,7 +742,7 @@ class {$this->studlySingular}Seeder extends Seeder
                 'message' => 'Seeder executed successfully',
                 'output' => $output,
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return [
                 'success' => false,
                 'message' => 'Seeder failed: '.$e->getMessage(),

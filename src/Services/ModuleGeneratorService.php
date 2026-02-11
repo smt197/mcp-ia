@@ -698,7 +698,8 @@ class {$this->studlySingular}Seeder extends Seeder
         $importLine = "use App\\Http\\Controllers\\{$this->studlySingular}Controller;";
 
         // Add Orion import if not exists
-        $orionImport = "use Orion\\Facades\\Orion;";
+        $orionImport = 'use Orion\\Facades\\Orion;';
+
         if (! str_contains($content, $orionImport)) {
             // Try to add after Route facade import
             if (str_contains($content, 'use Illuminate\Support\Facades\Route;')) {
@@ -734,10 +735,10 @@ class {$this->studlySingular}Seeder extends Seeder
                 $content,
                 1
             );
-            
+
             // If regex failed (no existing controller imports), add it after Orion import
             if (! str_contains($content, $importLine)) {
-                 $content = str_replace(
+                $content = str_replace(
                     $orionImport,
                     "{$orionImport}\n{$importLine}",
                     $content

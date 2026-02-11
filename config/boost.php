@@ -67,4 +67,13 @@ return [
         'default_roles' => ['user'],
     ],
 
+    'skills' => [
+        'remote' => [
+            'github_repository' => [
+                'owner' => 'thumanics',
+                'repository' => 'laravel-boost',
+            ],
+        ],
+    ],
+
 ];

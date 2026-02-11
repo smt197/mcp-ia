@@ -8,6 +8,7 @@ use Exception;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Laravel\Boost\Services\ModuleGeneratorService;
+use Illuminate\Contracts\Foundation\Application; // Importez l'application
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
@@ -57,7 +58,7 @@ class GenerateModule extends Tool
     /**
      * Handle the tool request.
      */
-    public function handle(Request $request): Response
+    public function handle(Request $request, Application $app): Response
     {
         // Check if module generator is enabled
         if (! config('boost.module_generator.enabled', true)) {
@@ -101,6 +102,7 @@ class GenerateModule extends Tool
         try {
             // Create the module generator service
             $generator = new ModuleGeneratorService(
+                $app,
                 $moduleName,
                 $fields,
                 $identifierField,

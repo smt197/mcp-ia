@@ -1,6 +1,8 @@
 {
     "name": "thumanics/laravel-boost",
-    "description": "Laravel Boost accelerates AI-assisted development by providing the essential context and structure that AI needs to generate high-quality, Laravel-specific code.",
+    "description": "A Laravel package to boost development with common tools and services",
+    "version": "1.0.6",
+    "type": "library",
     "keywords": [
         "dev",
         "laravel",

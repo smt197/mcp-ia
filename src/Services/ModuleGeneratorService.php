@@ -7,10 +7,13 @@ namespace Laravel\Boost\Services;
 use Exception;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Str;
 
 class ModuleGeneratorService
 {
+    // Ajoutez une propriété pour le conteneur d'application
+    protected Application $app;
     protected string $moduleName;
 
     protected string $singularName;
@@ -25,8 +28,9 @@ class ModuleGeneratorService
 
     protected array $roles;
 
-    public function __construct(string $moduleName, array $fields, string $identifierField = 'id', array $roles = ['user'])
+    public function __construct(Application $app, string $moduleName, array $fields, string $identifierField = 'id', array $roles = ['user'])
     {
+        $this->app = $app;
         $this->moduleName = $moduleName;
         $this->singularName = Str::singular($moduleName);
         $this->studlyName = Str::studly($moduleName);
@@ -41,6 +45,9 @@ class ModuleGeneratorService
         $results = [];
 
         try {
+            // Ensure required infrastructure exists (tables, models)
+            $this->checkAndCreateInfrastructure();
+
             $results['model'] = $this->generateModel();
             $results['migration'] = $this->generateMigration();
             $results['factory'] = $this->generateFactory();
@@ -63,6 +70,14 @@ class ModuleGeneratorService
                 $seederResult = $this->runSeeder();
                 $results['seeder_executed'] = $seederResult;
             }
+
+            // Generate Menu entry
+            $this->generateMenu($this->roles);
+            $results['menu_generated'] = true;
+
+            // Add to Module Manager
+            $this->addToModuleManager();
+            $results['module_manager_registered'] = true;
 
             return [
                 'success' => true,
@@ -163,7 +178,7 @@ class {$this->studlySingular} extends Model{$implements}
 }
 ";
 
-        $path = app_path("Models/{$this->studlySingular}.php");
+        $path = $this->app->path("Models/{$this->studlySingular}.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -201,7 +216,7 @@ return new class extends Migration
 };
 ";
 
-        $path = database_path("migrations/{$timestamp}_create_{$tableName}_table.php");
+        $path = $this->app->databasePath("migrations/{$timestamp}_create_{$tableName}_table.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -240,7 +255,7 @@ class {$this->studlySingular}Factory extends Factory
 }
 ";
 
-        $path = database_path("factories/{$this->studlySingular}Factory.php");
+        $path = $this->app->databasePath("factories/{$this->studlySingular}Factory.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -316,7 +331,7 @@ class {$this->studlySingular}Controller extends Controller
 }
 ";
 
-        $path = app_path("Http/Controllers/{$this->studlySingular}Controller.php");
+        $path = $this->app->path("Http/Controllers/{$this->studlySingular}Controller.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -453,7 +468,7 @@ class {$this->studlySingular}Resource extends JsonResource
 }
 ";
 
-        $path = app_path("Http/Resources/{$this->studlySingular}Resource.php");
+        $path = $this->app->path("Http/Resources/{$this->studlySingular}Resource.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -510,7 +525,7 @@ class {$this->studlySingular}Collection extends ResourceCollection
 }
 ";
 
-        $path = app_path("Http/Resources/Collections/{$this->studlySingular}Collection.php");
+        $path = $this->app->path("Http/Resources/Collections/{$this->studlySingular}Collection.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -557,7 +572,7 @@ class {$this->studlySingular}Request extends Request
 }
 ";
 
-        $path = app_path("Http/Requests/{$this->studlySingular}Request.php");
+        $path = $this->app->path("Http/Requests/{$this->studlySingular}Request.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -650,7 +665,7 @@ class {$this->studlySingular}Policy
 }
 ";
 
-        $path = app_path("Policies/{$this->studlySingular}Policy.php");
+        $path = $this->app->path("Policies/{$this->studlySingular}Policy.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -677,7 +692,7 @@ class {$this->studlySingular}Seeder extends Seeder
 }
 ";
 
-        $path = database_path("seeders/{$this->studlySingular}Seeder.php");
+        $path = $this->app->databasePath("seeders/{$this->studlySingular}Seeder.php");
         File::ensureDirectoryExists(dirname($path));
         File::put($path, $content);
 
@@ -686,7 +701,7 @@ class {$this->studlySingular}Seeder extends Seeder
 
     protected function addRoute(): string
     {
-        $routesPath = base_path('routes/api.php');
+        $routesPath = $this->app->basePath('routes/api.php');
 
         if (! File::exists($routesPath)) {
             return 'routes/api.php not found';
@@ -794,6 +809,337 @@ class {$this->studlySingular}Seeder extends Seeder
                 'success' => false,
                 'message' => 'Seeder failed: '.$e->getMessage(),
             ];
+        }
+    }
+
+    protected function checkAndCreateInfrastructure(): void
+    {
+        $this->ensureCategoryInfrastructure();
+        $this->ensureMenuInfrastructure();
+        $this->ensureModuleManagerInfrastructure();
+    }
+
+    protected function ensureCategoryInfrastructure(): void
+    {
+        // 1. Ensure Model exists
+        $modelPath = $this->app->path('Models/Category.php');
+        if (! File::exists($modelPath)) {
+            $content = <<<'PHP'
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Spatie\Sluggable\HasSlug;
+use Spatie\Sluggable\SlugOptions;
+
+class Category extends Model
+{
+    use HasFactory, HasSlug;
+
+    protected $fillable = ['name', 'slug', 'order', 'icon', 'navigation_type', 'position_reference_id', 'position_type'];
+
+    protected $casts = [
+        'order' => 'integer',
+        'position_reference_id' => 'integer',
+    ];
+
+    public function menus()
+    {
+        return $this->hasMany(Menu::class);
+    }
+
+    public function positionReference()
+    {
+        return $this->belongsTo(Category::class, 'position_reference_id');
+    }
+
+    public function getSlugOptions(): SlugOptions
+    {
+        return SlugOptions::create()
+            ->generateSlugsFrom(['name'])
+            ->saveSlugsTo('slug')
+            ->doNotGenerateSlugsOnUpdate();
+    }
+}
+PHP;
+            File::ensureDirectoryExists(dirname($modelPath));
+            File::put($modelPath, $content);
+        }
+
+        // 2. Ensure Migration exists (simplified check by checking if table exists, if not create migration)
+        // Note: Creating migration file only if it doesn't exist is harder strictly by filename due to timestamps.
+        // We will assume if the Model didn't exist, we probably need the migration, OR if the table doesn't exist.
+        // For simplicity in this tool, we check if a file with 'create_categories_table' exists in migrations.
+        
+        $migrationExists = ! empty(File::glob($this->app->databasePath('migrations/*_create_categories_table.php')));
+        
+        if (! $migrationExists) {
+            $timestamp = date('Y_m_d_His');
+            $migrationPath = $this->app->databasePath("migrations/{$timestamp}_create_categories_table.php");
+            
+            $content = <<<'PHP'
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->integer('order')->default(0);
+            $table->string('icon')->nullable();
+            $table->string('navigation_type')->default('side');
+            $table->unsignedBigInteger('position_reference_id')->nullable();
+            $table->string('position_type')->nullable(); // before, after
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('categories');
+    }
+};
+PHP;
+            File::put($migrationPath, $content);
+            // Run migrate immediately to ensure table exists for subsequent operations
+            Artisan::call('migrate', ['--force' => true]);
+        }
+    }
+
+    protected function ensureMenuInfrastructure(): void
+    {
+        // 1. Ensure Model exists
+        $modelPath = $this->app->path('Models/Menu.php');
+        if (! File::exists($modelPath)) {
+            $content = <<<'PHP'
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Spatie\Sluggable\HasSlug;
+use Spatie\Sluggable\SlugOptions;
+
+class Menu extends Model
+{
+    use HasFactory, HasSlug;
+
+    protected $fillable = [
+        'name',
+        'icon',
+        'color',
+        'route',
+        'roles',
+        'slug',
+        'category_id',
+        'disable',
+        'description',
+    ];
+
+    protected $casts = [
+        'roles' => 'array',
+        'description' => 'array',
+        'disable' => 'integer',
+    ];
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function getSlugOptions(): SlugOptions
+    {
+        return SlugOptions::create()
+            ->generateSlugsFrom(['name'])
+            ->saveSlugsTo('slug')
+            ->doNotGenerateSlugsOnUpdate();
+    }
+}
+PHP;
+            File::ensureDirectoryExists(dirname($modelPath));
+            File::put($modelPath, $content);
+        }
+
+        // 2. Ensure Migration exists
+        $migrationExists = ! empty(File::glob($this->app->databasePath('migrations/*_create_menus_table.php')));
+        
+        if (! $migrationExists) {
+            $timestamp = date('Y_m_d_His');
+            $migrationPath = $this->app->databasePath("migrations/{$timestamp}_create_menus_table.php");
+            
+            $content = <<<'PHP'
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('menus', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->unique();
+            $table->string('icon');
+            $table->string('color');
+            $table->string('route')->unique();
+            $table->json('roles');
+            $table->string('slug')->unique()->nullable();
+            $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
+            $table->integer('disable')->default(0);
+            $table->json('description')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('menus');
+    }
+};
+PHP;
+            File::put($migrationPath, $content);
+            Artisan::call('migrate', ['--force' => true]);
+        }
+    }
+
+    protected function ensureModuleManagerInfrastructure(): void
+    {
+        // ... (previous implementation) ...
+        // 2. Ensure Migration exists
+        $migrationExists = ! empty(File::glob($this->app->databasePath('migrations/*_create_module_managers_table.php')));
+        
+        if (! $migrationExists) {
+            $timestamp = date('Y_m_d_His');
+            $migrationPath = $this->app->databasePath("migrations/{$timestamp}_create_module_managers_table.php");
+            
+            $content = <<<'PHP'
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('module_managers', function (Blueprint $table) {
+            $table->id();
+            $table->string('module_name')->unique();
+            $table->string('slug')->unique();
+            $table->string('display_name');
+            $table->string('display_name_singular');
+            $table->string('resource_type');
+            $table->string('identifier_field')->default('id');
+            $table->string('identifier_type')->default('number');
+            $table->boolean('requires_auth')->default(true);
+            $table->string('route_path');
+            $table->json('fields');
+            $table->boolean('enabled')->default(true);
+            $table->boolean('dev_mode')->default(false);
+            $table->json('roles')->nullable();
+            $table->json('translations')->nullable();
+            $table->json('actions')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('module_managers');
+    }
+};
+PHP;
+            File::put($migrationPath, $content);
+            Artisan::call('migrate', ['--force' => true]);
+        }
+    }
+
+    protected function generateMenu(array $roles): void
+    {
+        // Only proceed if Menu model exists (it should, due to checkAndCreateInfrastructure)
+        if (! class_exists('App\Models\Menu')) {
+            return;
+        }
+
+        $menuName = $this->studlyName; // Use StudlyName for menu name to look good
+        $menuRoute = '/'.strtolower($this->moduleName); // e.g. /products
+        $menuIcon = 'extension'; // Default icon
+        $menuColor = '#10b981'; // Default green color
+        $menuSlug = Str::slug($this->moduleName);
+
+        // Get or create default category (Dashboard)
+        $category = \App\Models\Category::firstOrCreate(
+            ['slug' => 'dashboard'],
+            ['name' => 'Dashboard', 'order' => 0, 'icon' => 'dashboard']
+        );
+
+        // Check if menu already exists
+        $existingMenu = \App\Models\Menu::where('name', $menuName)
+            ->orWhere('slug', $menuSlug)
+            ->first();
+
+        if (! $existingMenu) {
+            \App\Models\Menu::create([
+                'name' => $menuName,
+                'icon' => $menuIcon,
+                'color' => $menuColor,
+                'route' => $menuRoute,
+                'roles' => $roles,
+                'slug' => $menuSlug,
+                'category_id' => $category->id,
+                'disable' => 0, // 0 = enabled based on migration default
+            ]);
+        }
+    }
+
+    protected function addToModuleManager(): void
+    {
+        // Only proceed if ModuleManager model exists
+        if (! class_exists('App\Models\ModuleManager')) {
+            return;
+        }
+
+        $moduleName = $this->moduleName;
+        
+        $exists = \App\Models\ModuleManager::where('module_name', $moduleName)->exists();
+
+        if (! $exists) {
+            \App\Models\ModuleManager::create([
+                'module_name' => $moduleName,
+                'slug' => Str::slug($moduleName),
+                'display_name' => $this->studlyName,
+                'display_name_singular' => $this->studlySingular,
+                'resource_type' => $moduleName,
+                'identifier_field' => $this->identifierField,
+                'identifier_type' => 'number', // Defaulting to number for now, could be inferred
+                'requires_auth' => true,
+                'route_path' => $moduleName,
+                'fields' => $this->fields,
+                'enabled' => true,
+                'dev_mode' => false,
+                'roles' => $this->roles,
+                'translations' => null,
+                'actions' => [
+                    'create' => ['enabled' => true],
+                    'edit' => ['enabled' => true],
+                    'delete' => ['enabled' => true],
+                    'show' => ['enabled' => true],
+                    'list' => ['enabled' => true],
+                ],
+            ]);
         }
     }
 }

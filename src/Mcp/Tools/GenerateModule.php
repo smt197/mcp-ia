@@ -42,7 +42,7 @@ class GenerateModule extends Tool
                         'required' => $schema->boolean()->description('Whether the field is required')->required(),
                     ])
                 )
-                )
+
                 ->description('Array of field definitions for the module')
                 ->required(),
             'identifier_field' => $schema->string()

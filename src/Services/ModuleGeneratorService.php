@@ -697,7 +697,36 @@ class {$this->studlySingular}Seeder extends Seeder
         $routeLine = "    Orion::resource('{$this->moduleName}', {$this->studlySingular}Controller::class);";
         $importLine = "use App\\Http\\Controllers\\{$this->studlySingular}Controller;";
 
-        // Add import if not exists
+        // Add Orion import if not exists
+        $orionImport = "use Orion\\Facades\\Orion;";
+        if (! str_contains($content, $orionImport)) {
+            // Try to add after Route facade import
+            if (str_contains($content, 'use Illuminate\Support\Facades\Route;')) {
+                $content = str_replace(
+                    'use Illuminate\Support\Facades\Route;',
+                    "use Illuminate\Support\Facades\Route;\n{$orionImport}",
+                    $content
+                );
+            } else {
+                // Add after declare(strict_types=1); if present
+                if (str_contains($content, 'declare(strict_types=1);')) {
+                    $content = str_replace(
+                        'declare(strict_types=1);',
+                        "declare(strict_types=1);\n\n{$orionImport}",
+                        $content
+                    );
+                } else {
+                    // Add after opening tag
+                    $content = preg_replace(
+                        '/^<\?php\s*/',
+                        "<?php\n\n{$orionImport}\n",
+                        $content
+                    );
+                }
+            }
+        }
+
+        // Add controller import if not exists
         if (! str_contains($content, $importLine)) {
             $content = preg_replace(
                 '/(use\s+App\\\\Http\\\\Controllers\\\\[^;]+;)/',
@@ -705,6 +734,15 @@ class {$this->studlySingular}Seeder extends Seeder
                 $content,
                 1
             );
+            
+            // If regex failed (no existing controller imports), add it after Orion import
+            if (! str_contains($content, $importLine)) {
+                 $content = str_replace(
+                    $orionImport,
+                    "{$orionImport}\n{$importLine}",
+                    $content
+                );
+            }
         }
 
         // Add route if not exists

@@ -47,7 +47,7 @@ class ExecuteToolCommand extends Command
 
         try {
             /** @var Response $response */
-            $response = $tool->handle($request); // @phpstan-ignore-line
+            $response = $tool->handle($request, app()); // @phpstan-ignore-line
         } catch (Throwable $throwable) {
             $errorResult = Response::error("Tool execution failed (E_THROWABLE): {$throwable->getMessage()}");
 

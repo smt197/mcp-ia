@@ -48,4 +48,31 @@ return [
         'vendor_bin' => env('BOOST_VENDOR_BIN_EXECUTABLE_PATH'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Module Generator
+    |--------------------------------------------------------------------------
+    |
+    | These options control the behavior of the module generator MCP tool.
+    | The generator creates complete CRUD modules with models, migrations,
+    | controllers, resources, policies, factories, seeders, and routes.
+    |
+    */
+
+    'module_generator' => [
+        'enabled' => env('MODULE_GENERATOR_ENABLED', true),
+        'auto_migrate' => env('MODULE_GENERATOR_AUTO_MIGRATE', true),
+        'auto_seed' => env('MODULE_GENERATOR_AUTO_SEED', true),
+        'default_identifier' => env('MODULE_GENERATOR_DEFAULT_IDENTIFIER', 'id'),
+        'default_roles' => ['user'],
+    ],
+
+    'skills' => [
+        'remote' => [
+            'github_repository' => [
+                'owner' => 'thumanics',
+                'repository' => 'laravel-boost',
+            ],
+        ],
+    ],
 ];

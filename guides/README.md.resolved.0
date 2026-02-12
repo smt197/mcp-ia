@@ -1,0 +1,28 @@
+# 📚 Laravel Boost Documentation
+
+This folder contains all the necessary guides to get started with the new Module Generator.
+
+## 🚀 Getting Started
+
+- [Getting Started](getting-started.md)
+  A quick overview of what's been implemented and how to begin.
+
+- [Setup Guide (Gemini CLI)](gemini-cli-setup.md)
+  How to configure your Gemini CLI to use the Laravel Boost MCP server.
+
+## 🛠️ Usage Guides
+
+- [Module Generator User Guide](module-generator.md)
+  The comprehensive guide to using the `generate-module` tool, with detailed explanations of all supported fields and options.
+
+- [Quick Test Guide](quick-test.md)
+  Instructions for running local tests to verify the module generator functionality.
+
+## 💡 Examples
+
+- [Prompt Examples](prompts.md)
+  Ready-to-use prompts for generating various types of modules (e.g., Blog, E-commerce, CRM).
+
+---
+
+Happy coding! 🚀

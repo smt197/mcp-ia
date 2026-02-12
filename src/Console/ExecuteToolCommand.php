@@ -50,6 +50,7 @@ class ExecuteToolCommand extends Command
             $response = $tool->handle($request, app()); // @phpstan-ignore-line
         } catch (Throwable $throwable) {
             $errorResult = Response::error("Tool execution failed (E_THROWABLE): {$throwable->getMessage()}");
+
             $this->error(json_encode([
                 'isError' => true,
                 'content' => [

@@ -1,7 +1,6 @@
 {
     "name": "thumanics/laravel-boost",
     "description": "A Laravel package to boost development with common tools and services",
-    "version": "1.0.6",
     "type": "library",
     "keywords": [
         "dev",

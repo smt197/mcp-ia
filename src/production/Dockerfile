@@ -55,7 +55,7 @@ RUN install-php-extensions \
 RUN docker-php-serversideup-set-id www-data $USER_ID:$GROUP_ID && \
     docker-php-serversideup-set-file-permissions --owner $USER_ID:$GROUP_ID --service nginx
 
-COPY production/etc/php/conf.d/zzz-custom-php.ini /usr/local/etc/php/conf.d/zzz-custom-php.ini
+COPY src/production/etc/php/conf.d/zzz-custom-php.ini /usr/local/etc/php/conf.d/zzz-custom-php.ini
 ENV PHP_OPCACHE_ENABLE=1
 
 COPY --from=base --chown=www-data:www-data /var/www/html/vendor ./vendor
@@ -66,7 +66,7 @@ RUN rm -f bootstrap/cache/*.php && \
     rm -rf storage/framework/views/* && \
     docker-php-serversideup-set-file-permissions --owner $USER_ID:$GROUP_ID --service nginx
 
-COPY production/etc/nginx/conf.d/custom.conf /etc/nginx/conf.d/custom.conf
-COPY production/etc/nginx/site-opts.d/http.conf /etc/nginx/site-opts.d/http.conf
+COPY src/production/etc/nginx/conf.d/custom.conf /etc/nginx/conf.d/custom.conf
+COPY src/production/etc/nginx/site-opts.d/http.conf /etc/nginx/site-opts.d/http.conf
 
 USER www-data

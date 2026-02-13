@@ -16,7 +16,7 @@ RUN docker-php-serversideup-set-id www-data $USER_ID:$GROUP_ID && \
     docker-php-serversideup-set-file-permissions --owner $USER_ID:$GROUP_ID --service nginx
 
 WORKDIR /var/www/html
-COPY --chown=www-data:www-data composer.json composer.lock ./
+COPY --chown=www-data:www-data composer.json ./
 
 USER www-data
 RUN --mount=type=cache,target=/tmp/cache \

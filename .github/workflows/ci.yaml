@@ -1,13 +1,12 @@
-name: Build and Deploy Docker Image
+name: Build and Push Docker Image
 
 on:
   push:
     branches: ["main"]
-  
+
 permissions:
   contents: read
   packages: write
-  actions: read
 
 jobs:
   build-and-push:
@@ -28,7 +27,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GH_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata for Docker
         id: meta
@@ -37,7 +36,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=latest
-            type=sha,format=long
+            type=sha,format=short
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -54,33 +53,3 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
           provenance: false
-
-      - name: Notify Dokploy via Webhook
-        if: success()
-        env:
-          WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
-        run: |
-          set +e  # Désactiver l'arrêt sur erreur
-          echo "Calling webhook..."
-
-          response=$(curl -X POST "${WEBHOOK_URL}" \
-            -w "\nHTTP_CODE:%{http_code}" \
-            -s \
-            --max-time 30)
-          curl_exit_code=$?
-
-          echo "Curl exit code: $curl_exit_code"
-          echo "Response:"
-          echo "$response"
-
-          http_code=$(echo "$response" | grep "HTTP_CODE" | cut -d: -f2)
-          echo "HTTP Code: $http_code"
-
-          if [ "$http_code" = "200" ] || [ "$http_code" = "201" ] || [ "$http_code" = "204" ]; then
-            echo "✅ Webhook successful with code: $http_code"
-          else
-            echo "⚠️ Webhook failed with code: $http_code (curl exit: $curl_exit_code)"
-            echo "Note: This will not fail the deployment as the image was successfully pushed"
-          fi
-        timeout-minutes: 2
-

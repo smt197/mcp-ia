@@ -700,7 +700,7 @@ class {$this->studlySingular}Seeder extends Seeder
         return $path;
     }
 
-     protected function addRoute(): string
+    protected function addRoute(): string
     {
         $routesPath = $this->app->basePath('routes/api.php');
 

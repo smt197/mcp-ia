@@ -70,12 +70,14 @@ class GenerateModule extends Tool
 
         foreach ($fieldsStrings as $fieldString) {
             $parts = explode(':', $fieldString, 3);
+
             if (count($parts) !== 3) {
                 return Response::error("Invalid field format: '{$fieldString}'. Must be in 'name:type:required|nullable' format.");
             }
 
             $flag = strtolower($parts[2]);
-            if (!in_array($flag, ['required', 'nullable'])) {
+
+            if (! in_array($flag, ['required', 'nullable'], true)) {
                 return Response::error("Invalid flag '{$parts[2]}' in '{$fieldString}'. Must be 'required' or 'nullable'.");
             }
 

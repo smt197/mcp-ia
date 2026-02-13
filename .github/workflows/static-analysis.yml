@@ -3,7 +3,7 @@ name: static analysis
 on:
   push:
     branches:
-      - master
+      - main
       - '*.x'
   pull_request:
 
@@ -24,16 +24,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
-          extensions: swoole, relay
           tools: composer:v2
           coverage: none
-
-      - name: Setup SSH Keys
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.MCP_DEPLOY_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
 
       - name: Install dependencies
         uses: nick-fields/retry@v3
@@ -44,4 +36,3 @@ jobs:
 
       - name: Execute type checking
         run: vendor/bin/phpstan --verbose
-

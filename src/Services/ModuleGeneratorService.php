@@ -700,7 +700,7 @@ class {$this->studlySingular}Seeder extends Seeder
         return $path;
     }
 
-    protected function addRoute(): string
+     protected function addRoute(): string
     {
         $routesPath = $this->app->basePath('routes/api.php');
 
@@ -712,36 +712,59 @@ class {$this->studlySingular}Seeder extends Seeder
 
         $routeLine = "Orion::resource('{$this->moduleName}', {$this->studlySingular}Controller::class);";
         $importLine = "use App\\Http\\Controllers\\{$this->studlySingular}Controller;";
+
+        // Add Orion import if not exists
         $orionImport = 'use Orion\\Facades\\Orion;';
 
-        // Ensure <?php exists
-        if (! str_starts_with(trim($content), '<?php')) {
-            $content = "<?php\n\n".$content;
-        }
-
-        // Add Orion import if missing
         if (! str_contains($content, $orionImport)) {
-            $content = preg_replace(
-                '/<\?php\s*/',
-                "<?php\n\n{$orionImport}\n",
-                $content,
-                1
-            );
+            // Try to add after Route facade import
+            if (str_contains($content, 'use Illuminate\Support\Facades\Route;')) {
+                $content = str_replace(
+                    'use Illuminate\Support\Facades\Route;',
+                    "use Illuminate\Support\Facades\Route;\n{$orionImport}",
+                    $content
+                );
+            } else {
+                // Add after declare(strict_types=1); if present
+                if (str_contains($content, 'declare(strict_types=1);')) {
+                    $content = str_replace(
+                        'declare(strict_types=1);',
+                        "declare(strict_types=1);\n\n{$orionImport}",
+                        $content
+                    );
+                } else {
+                    // Add after opening tag
+                    $content = preg_replace(
+                        '/^<\?php\s*/',
+                        "<?php\n\n{$orionImport}\n",
+                        $content
+                    );
+                }
+            }
         }
 
-        // Add Controller import if missing
+        // Add controller import if not exists
         if (! str_contains($content, $importLine)) {
             $content = preg_replace(
-                '/use\s+Orion\\Facades\\Orion;/',
-                "{$orionImport}\n{$importLine}",
+                '/(use\s+App\\\\Http\\\\Controllers\\\\[^;]+;)/',
+                "$1\n{$importLine}",
                 $content,
                 1
             );
+
+            // If regex failed (no existing controller imports), add it after Orion import
+            if (! str_contains($content, $importLine)) {
+                $content = str_replace(
+                    $orionImport,
+                    "{$orionImport}\n{$importLine}",
+                    $content
+                );
+            }
         }
 
-        // Add route if missing
-        if (! str_contains($content, $routeLine)) {
-            $content .= "\n{$routeLine}\n";
+        // Add route if not exists
+        if (! str_contains($content, "Orion::resource('{$this->moduleName}'")) {
+            $content = rtrim($content)."\n\n{$routeLine}\n";
         }
 
         File::put($routesPath, $content);

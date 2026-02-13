@@ -716,27 +716,27 @@ class {$this->studlySingular}Seeder extends Seeder
 
         // Ensure <?php exists
         if (! str_starts_with(trim($content), '<?php')) {
-            $content = "<?php\n\n" . $content;
+            $content = "<?php\n\n".$content;
         }
 
         // Add Orion import if missing
         if (! str_contains($content, $orionImport)) {
             $content = preg_replace(
-            '/<\?php\s*/',
-            "<?php\n\n{$orionImport}\n",
-            $content,
-            1
-        );
+                '/<\?php\s*/',
+                "<?php\n\n{$orionImport}\n",
+                $content,
+                1
+            );
         }
 
         // Add Controller import if missing
         if (! str_contains($content, $importLine)) {
             $content = preg_replace(
-            '/use\s+Orion\\Facades\\Orion;/',
-            "{$orionImport}\n{$importLine}",
-            $content,
-            1
-        );
+                '/use\s+Orion\\Facades\\Orion;/',
+                "{$orionImport}\n{$importLine}",
+                $content,
+                1
+            );
         }
 
         // Add route if missing
@@ -748,7 +748,6 @@ class {$this->studlySingular}Seeder extends Seeder
 
         return $routesPath;
     }
-
 
     protected function runMigration(): array
     {

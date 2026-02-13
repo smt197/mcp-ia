@@ -32,19 +32,8 @@ class GenerateModule extends Tool
                 ->description('Module name in plural form (e.g., "products", "blog_posts"). This will be used for the table name and routes.')
                 ->required(),
             'fields' => $schema->array()
-                ->items(
-
-                    $schema->object([
-                        'name' => $schema->string()->description('Field name (e.g., "title", "price", "description")')->required(),
-                        'type' => $schema->string()
-                            ->enum(['string', 'number', 'boolean', 'Date', 'File', 'textarea', 'quill-editor', 'email', 'password'])
-                            ->description('Field type. Use "File" for file uploads (requires Spatie Media Library).')
-                            ->required(),
-                        'required' => $schema->boolean()->description('Whether the field is required')->required(),
-                    ])
-                )
-
-                ->description('Array of field definitions for the module')
+                ->items($schema->string())
+                ->description('Array of field definitions, each as a single string in "name:type:flag" format. The flag must be "required" or "nullable". Examples: ["name:string:required", "description:textarea:nullable", "price:number:required"]')
                 ->required(),
             'identifier_field' => $schema->string()
                 ->enum(['id', 'slug'])
@@ -67,14 +56,34 @@ class GenerateModule extends Tool
 
         // Validate required parameters
         $moduleName = $request->get('module_name');
-        $fields = $request->get('fields');
+        $fieldsStrings = $request->get('fields');
 
         if (empty($moduleName)) {
             return Response::error('module_name is required');
         }
 
-        if (empty($fields) || ! is_array($fields)) {
+        if (empty($fieldsStrings) || ! is_array($fieldsStrings)) {
             return Response::error('fields must be a non-empty array');
+        }
+
+        $fields = [];
+
+        foreach ($fieldsStrings as $fieldString) {
+            $parts = explode(':', $fieldString, 3);
+            if (count($parts) !== 3) {
+                return Response::error("Invalid field format: '{$fieldString}'. Must be in 'name:type:required|nullable' format.");
+            }
+
+            $flag = strtolower($parts[2]);
+            if (!in_array($flag, ['required', 'nullable'])) {
+                return Response::error("Invalid flag '{$parts[2]}' in '{$fieldString}'. Must be 'required' or 'nullable'.");
+            }
+
+            $fields[] = [
+                'name' => $parts[0],
+                'type' => $parts[1],
+                'required' => ($flag === 'required'),
+            ];
         }
 
         // Validate fields structure

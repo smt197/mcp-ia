@@ -2,6 +2,8 @@ services:
   app:
     container_name: ${APP_NAME:-laravel-boost}
     image: ghcr.io/${GHCR_OWNER}/${GHCR_IMAGE}:latest
+    volumes:
+      - C:\laragon\www\test-package:/var/www/html
     pull_policy: always
     restart: unless-stopped
     networks:

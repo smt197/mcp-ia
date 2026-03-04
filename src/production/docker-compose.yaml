@@ -6,6 +6,8 @@ services:
       - C:\laragon\www\test-package:/var/www/html
     pull_policy: always
     restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:80"
     networks:
       - app-network
     environment:

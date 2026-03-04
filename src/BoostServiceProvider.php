@@ -114,6 +114,8 @@ class BoostServiceProvider extends ServiceProvider
 
     protected function registerRoutes(): void
     {
+        $this->loadRoutesFrom(__DIR__.'/../routes/ai.php');
+
         Route::post('/_boost/browser-logs', function (Request $request) {
             $logs = $request->input('logs', []);
 

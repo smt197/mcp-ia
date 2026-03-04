@@ -7,11 +7,11 @@
         "laravel",
         "ai"
     ],
-    "homepage": "https://github.com/laravel/boost",
+    "homepage": "https://github.com/thumanics/laravel-boost",
     "license": "MIT",
     "support": {
-        "issues": "https://github.com/laravel/boost/issues",
-        "source": "https://github.com/laravel/boost"
+        "issues": "https://github.com/thumanics/laravel-boost/issues",
+        "source": "https://github.com/thumanics/laravel-boost"
     },
     "require": {
         "php": "^8.2",

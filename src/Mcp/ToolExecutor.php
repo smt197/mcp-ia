@@ -37,7 +37,7 @@ class ToolExecutor
 
         $process = new Process(
             command: $command,
-            env: $cleanEnv,
+            env: empty($cleanEnv) ? null : $cleanEnv,
             timeout: $this->getTimeout($arguments)
         );
 

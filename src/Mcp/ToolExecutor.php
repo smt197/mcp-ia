@@ -35,9 +35,14 @@ class ToolExecutor
 
         $cleanEnv = array_fill_keys(array_keys($env), false);
 
+        $envOverrides = [
+            'APP_ENV' => app()->environment(),
+            'APP_DEBUG' => config('app.debug') ? 'true' : 'false',
+        ];
+
         $process = new Process(
             command: $command,
-            env: empty($cleanEnv) ? null : $cleanEnv,
+            env: empty($cleanEnv) ? $envOverrides : array_merge($cleanEnv, $envOverrides),
             timeout: $this->getTimeout($arguments)
         );
 

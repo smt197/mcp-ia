@@ -125,11 +125,40 @@ class ToolExecutor
     protected function buildCommand(string $toolClass, array $arguments): array
     {
         return [
-            PHP_BINARY,
+            $this->getPhpBinary(),
             base_path('artisan'),
             'boost:execute-tool',
             $toolClass,
             base64_encode(json_encode($arguments)),
         ];
+    }
+
+    /**
+     * Get the PHP CLI binary path, avoiding php-fpm in Docker environments.
+     */
+    protected function getPhpBinary(): string
+    {
+        $binary = PHP_BINARY;
+
+        // If running under php-fpm, find the CLI binary instead
+        if (str_contains($binary, 'fpm')) {
+            // Try common CLI paths
+            foreach (['/usr/local/bin/php', '/usr/bin/php'] as $cliBinary) {
+                if (is_executable($cliBinary)) {
+                    return $cliBinary;
+                }
+            }
+
+            // Fallback: try replacing 'php-fpm' with 'php' in the path
+            $cliBinary = str_replace('php-fpm', 'php', $binary);
+            if ($cliBinary !== $binary && is_executable($cliBinary)) {
+                return $cliBinary;
+            }
+
+            // Last resort: rely on PATH
+            return 'php';
+        }
+
+        return $binary;
     }
 }

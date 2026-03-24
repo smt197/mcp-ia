@@ -111,54 +111,25 @@ class GenerateModule extends Tool
         }
 
         try {
-            // Create the module generator service
+            // Always use dryRun mode: generate file contents without writing to disk
+            // The client-package will write the files to its own project
             $generator = new ModuleGeneratorService(
                 $app,
                 $moduleName,
                 $fields,
                 $identifierField,
-                $roles
+                $roles,
+                dryRun: true
             );
 
-            // Generate the module
             $result = $generator->generate();
 
             if (! $result['success']) {
                 return Response::error($result['message']."\n\nError details:\n".$result['error'] ?? 'No additional details');
             }
 
-            // Format success response
-            $filesGenerated = [];
-
-            foreach ($result['files'] as $key => $path) {
-                if (is_string($path)) {
-                    $filesGenerated[] = "- {$key}: {$path}";
-                } elseif (is_array($path) && isset($path['success'])) {
-                    $status = $path['success'] ? '✓' : '✗';
-                    $filesGenerated[] = "- {$key}: {$status} {$path['message']}";
-                }
-            }
-
-            $responseText = "✅ Module '{$moduleName}' generated successfully!\n\n";
-            $responseText .= "Files created:\n".implode("\n", $filesGenerated)."\n\n";
-            $responseText .= "Next steps:\n";
-            $responseText .= "1. Review the generated files\n";
-            $responseText .= "2. Customize the controller, resource, or policy as needed\n";
-            $responseText .= "3. Test the API endpoints at /api/{$moduleName}\n";
-
-            if (config('boost.module_generator.auto_migrate', true)) {
-                $responseText .= "\n✓ Migration was automatically executed";
-            } else {
-                $responseText .= "\n⚠ Run 'php artisan migrate' to create the database table";
-            }
-
-            if (config('boost.module_generator.auto_seed', true)) {
-                $responseText .= "\n✓ Seeder was automatically executed (10 sample records created)";
-            } else {
-                $responseText .= "\n⚠ Run 'php artisan db:seed --class={$result['files']['seeder']}' to seed sample data";
-            }
-
-            return Response::text($responseText);
+            // Return the structured JSON with file contents for client-package to write
+            return Response::text(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         } catch (Exception $e) {
             return Response::error('Module generation failed: '.$e->getMessage()."\n\nStack trace:\n".$e->getTraceAsString());
         }

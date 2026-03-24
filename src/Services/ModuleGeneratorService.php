@@ -15,7 +15,6 @@ use Illuminate\Support\Str;
 
 class ModuleGeneratorService
 {
-    // Ajoutez une propriété pour le conteneur d'application
     protected Application $app;
 
     protected string $moduleName;
@@ -32,7 +31,12 @@ class ModuleGeneratorService
 
     protected array $roles;
 
-    public function __construct(Application $app, string $moduleName, array $fields, string $identifierField = 'id', array $roles = ['user'])
+    protected bool $dryRun;
+
+    /** @var array<int, array{relative_path: string, content: string, type: string}> */
+    protected array $generatedFiles = [];
+
+    public function __construct(Application $app, string $moduleName, array $fields, string $identifierField = 'id', array $roles = ['user'], bool $dryRun = false)
     {
         $this->app = $app;
         $this->moduleName = $moduleName;
@@ -42,6 +46,8 @@ class ModuleGeneratorService
         $this->fields = $fields;
         $this->identifierField = $identifierField;
         $this->roles = $roles;
+        $this->dryRun = $dryRun;
+        $this->generatedFiles = [];
     }
 
     public function generate(): array
@@ -49,8 +55,10 @@ class ModuleGeneratorService
         $results = [];
 
         try {
-            // Ensure required infrastructure exists (tables, models)
-            $this->checkAndCreateInfrastructure();
+            // In dryRun mode, skip infrastructure checks (they depend on local DB)
+            if (! $this->dryRun) {
+                $this->checkAndCreateInfrastructure();
+            }
 
             $results['model'] = $this->generateModel();
             $results['migration'] = $this->generateMigration();
@@ -63,23 +71,52 @@ class ModuleGeneratorService
             $results['seeder'] = $this->generateSeeder();
             $results['route'] = $this->addRoute();
 
-            // Run migration automatically if configured
+            // In dryRun mode, return files content instead of executing side effects
+            if ($this->dryRun) {
+                return [
+                    'success' => true,
+                    'message' => 'Module generated (dry run)',
+                    'files' => $this->generatedFiles,
+                    'route_append' => $results['route'],
+                    'post_actions' => ['migrate', "seed:{$this->studlySingular}Seeder"],
+                    'infrastructure' => [
+                        'menu' => [
+                            'name' => $this->studlyName,
+                            'route' => '/'.strtolower($this->moduleName),
+                            'icon' => 'extension',
+                            'color' => '#10b981',
+                            'slug' => Str::slug($this->moduleName),
+                            'roles' => $this->roles,
+                        ],
+                        'module_manager' => [
+                            'module_name' => $this->moduleName,
+                            'slug' => Str::slug($this->moduleName),
+                            'display_name' => $this->studlyName,
+                            'display_name_singular' => $this->studlySingular,
+                            'resource_type' => $this->moduleName,
+                            'identifier_field' => $this->identifierField,
+                            'route_path' => $this->moduleName,
+                            'fields' => $this->fields,
+                            'roles' => $this->roles,
+                        ],
+                    ],
+                ];
+            }
+
+            // Normal mode: run migrations, seeders, etc.
             if (config('boost.module_generator.auto_migrate', true)) {
                 $migrationResult = $this->runMigration();
                 $results['migration_executed'] = $migrationResult;
             }
 
-            // Run seeder automatically if configured
             if (config('boost.module_generator.auto_seed', true)) {
                 $seederResult = $this->runSeeder();
                 $results['seeder_executed'] = $seederResult;
             }
 
-            // Generate Menu entry
             $this->generateMenu($this->roles);
             $results['menu_generated'] = true;
 
-            // Add to Module Manager
             $this->addToModuleManager();
             $results['module_manager_registered'] = true;
 
@@ -95,6 +132,32 @@ class ModuleGeneratorService
                 'error' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    /**
+     * Write file to disk or collect it for dry run.
+     */
+    protected function writeOrCollect(string $absolutePath, string $content, string $type): string
+    {
+        if ($this->dryRun) {
+            // Convert absolute path to relative path from project root
+            $basePath = $this->app->basePath();
+            $relativePath = str_replace($basePath.DIRECTORY_SEPARATOR, '', $absolutePath);
+            $relativePath = str_replace('\\', '/', $relativePath);
+
+            $this->generatedFiles[] = [
+                'relative_path' => $relativePath,
+                'content' => $content,
+                'type' => $type,
+            ];
+
+            return $relativePath;
+        }
+
+        File::ensureDirectoryExists(dirname($absolutePath));
+        File::put($absolutePath, $content);
+
+        return $absolutePath;
     }
 
     protected function hasFileField(): bool
@@ -183,10 +246,8 @@ class {$this->studlySingular} extends Model{$implements}
 ";
 
         $path = $this->app->path("Models/{$this->studlySingular}.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'model');
     }
 
     protected function generateMigration(): string
@@ -221,10 +282,8 @@ return new class extends Migration
 ";
 
         $path = $this->app->databasePath("migrations/{$timestamp}_create_{$tableName}_table.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'migration');
     }
 
     protected function generateFactory(): string
@@ -260,10 +319,8 @@ class {$this->studlySingular}Factory extends Factory
 ";
 
         $path = $this->app->databasePath("factories/{$this->studlySingular}Factory.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'factory');
     }
 
     protected function generateController(): string
@@ -336,10 +393,8 @@ class {$this->studlySingular}Controller extends Controller
 ";
 
         $path = $this->app->path("Http/Controllers/{$this->studlySingular}Controller.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'controller');
     }
 
     // Helper methods will be added in the next part...
@@ -473,10 +528,8 @@ class {$this->studlySingular}Resource extends JsonResource
 ";
 
         $path = $this->app->path("Http/Resources/{$this->studlySingular}Resource.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'resource');
     }
 
     protected function getResourceFields(): string
@@ -530,10 +583,8 @@ class {$this->studlySingular}Collection extends ResourceCollection
 ";
 
         $path = $this->app->path("Http/Resources/Collections/{$this->studlySingular}Collection.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'collection');
     }
 
     protected function generateRequest(): string
@@ -577,10 +628,8 @@ class {$this->studlySingular}Request extends Request
 ";
 
         $path = $this->app->path("Http/Requests/{$this->studlySingular}Request.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'request');
     }
 
     protected function getValidationRules(bool $isStore): string
@@ -670,10 +719,8 @@ class {$this->studlySingular}Policy
 ";
 
         $path = $this->app->path("Policies/{$this->studlySingular}Policy.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'policy');
     }
 
     protected function generateSeeder(): string
@@ -697,14 +744,25 @@ class {$this->studlySingular}Seeder extends Seeder
 ";
 
         $path = $this->app->databasePath("seeders/{$this->studlySingular}Seeder.php");
-        File::ensureDirectoryExists(dirname($path));
-        File::put($path, $content);
 
-        return $path;
+        return $this->writeOrCollect($path, $content, 'seeder');
     }
 
-    protected function addRoute(): string
+    protected function addRoute(): array|string
     {
+        $routeLine = "Orion::resource('{$this->moduleName}', {$this->studlySingular}Controller::class);";
+        $importLine = "use App\\Http\\Controllers\\{$this->studlySingular}Controller;";
+        $orionImport = 'use Orion\\Facades\\Orion;';
+
+        // In dryRun mode, return the route instructions instead of modifying the file
+        if ($this->dryRun) {
+            return [
+                'file' => 'routes/api.php',
+                'import_lines' => [$orionImport, $importLine],
+                'route_line' => $routeLine,
+            ];
+        }
+
         $routesPath = $this->app->basePath('routes/api.php');
 
         if (! File::exists($routesPath)) {
@@ -713,14 +771,7 @@ class {$this->studlySingular}Seeder extends Seeder
 
         $content = File::get($routesPath);
 
-        $routeLine = "Orion::resource('{$this->moduleName}', {$this->studlySingular}Controller::class);";
-        $importLine = "use App\\Http\\Controllers\\{$this->studlySingular}Controller;";
-
-        // Add Orion import if not exists
-        $orionImport = 'use Orion\\Facades\\Orion;';
-
         if (! str_contains($content, $orionImport)) {
-            // Try to add after Route facade import
             if (str_contains($content, 'use Illuminate\Support\Facades\Route;')) {
                 $content = str_replace(
                     'use Illuminate\Support\Facades\Route;',
@@ -728,7 +779,6 @@ class {$this->studlySingular}Seeder extends Seeder
                     $content
                 );
             } else {
-                // Add after declare(strict_types=1); if present
                 if (str_contains($content, 'declare(strict_types=1);')) {
                     $content = str_replace(
                         'declare(strict_types=1);',
@@ -736,7 +786,6 @@ class {$this->studlySingular}Seeder extends Seeder
                         $content
                     );
                 } else {
-                    // Add after opening tag
                     $content = preg_replace(
                         '/^<\?php\s*/',
                         "<?php\n\n{$orionImport}\n",
@@ -746,7 +795,6 @@ class {$this->studlySingular}Seeder extends Seeder
             }
         }
 
-        // Add controller import if not exists
         if (! str_contains($content, $importLine)) {
             $content = preg_replace(
                 '/(use\s+App\\\\Http\\\\Controllers\\\\[^;]+;)/',
@@ -755,7 +803,6 @@ class {$this->studlySingular}Seeder extends Seeder
                 1
             );
 
-            // If regex failed (no existing controller imports), add it after Orion import
             if (! str_contains($content, $importLine)) {
                 $content = str_replace(
                     $orionImport,
@@ -765,7 +812,6 @@ class {$this->studlySingular}Seeder extends Seeder
             }
         }
 
-        // Add route if not exists
         if (! str_contains($content, "Orion::resource('{$this->moduleName}'")) {
             $content = rtrim($content)."\n\n{$routeLine}\n";
         }

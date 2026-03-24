@@ -16,6 +16,7 @@ use Laravel\Boost\Install\GuidelineAssist;
 use Laravel\Boost\Install\GuidelineConfig;
 use Laravel\Boost\Mcp\Boost;
 use Laravel\Boost\Middleware\InjectBoost;
+use Laravel\Boost\Services\BrowserLogger;
 use Laravel\Mcp\Facades\Mcp;
 use Laravel\Roster\Roster;
 
@@ -114,6 +115,8 @@ class BoostServiceProvider extends ServiceProvider
 
     protected function registerRoutes(): void
     {
+        $this->loadRoutesFrom(__DIR__.'/../routes/ai.php');
+
         Route::post('/_boost/browser-logs', function (Request $request) {
             $logs = $request->input('logs', []);
 
@@ -187,7 +190,7 @@ class BoostServiceProvider extends ServiceProvider
 
     protected function registerBladeDirectives(BladeCompiler $bladeCompiler): void
     {
-        $bladeCompiler->directive('boostJs', fn (): string => '<?php echo '.\Laravel\Boost\Services\BrowserLogger::class.'::getScript(); ?>');
+        $bladeCompiler->directive('boostJs', fn (): string => '<?php echo '.BrowserLogger::class.'::getScript(); ?>');
     }
 
     protected function hookIntoResponses(Router $router): void

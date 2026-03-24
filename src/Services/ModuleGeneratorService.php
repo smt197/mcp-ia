@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Laravel\Boost\Services;
 
+use App\Models\Category;
+use App\Models\Menu;
+use App\Models\ModuleManager;
 use Exception;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
@@ -1084,18 +1087,18 @@ PHP;
         $menuSlug = Str::slug($this->moduleName);
 
         // Get or create default category (Dashboard)
-        $category = \App\Models\Category::firstOrCreate(
+        $category = Category::firstOrCreate(
             ['slug' => 'dashboard'],
             ['name' => 'Dashboard', 'order' => 0, 'icon' => 'dashboard']
         );
 
         // Check if menu already exists
-        $existingMenu = \App\Models\Menu::where('name', $menuName)
+        $existingMenu = Menu::where('name', $menuName)
             ->orWhere('slug', $menuSlug)
             ->first();
 
         if (! $existingMenu) {
-            \App\Models\Menu::create([
+            Menu::create([
                 'name' => $menuName,
                 'icon' => $menuIcon,
                 'color' => $menuColor,
@@ -1117,10 +1120,10 @@ PHP;
 
         $moduleName = $this->moduleName;
 
-        $exists = \App\Models\ModuleManager::where('module_name', $moduleName)->exists();
+        $exists = ModuleManager::where('module_name', $moduleName)->exists();
 
         if (! $exists) {
-            \App\Models\ModuleManager::create([
+            ModuleManager::create([
                 'module_name' => $moduleName,
                 'slug' => Str::slug($moduleName),
                 'display_name' => $this->studlyName,

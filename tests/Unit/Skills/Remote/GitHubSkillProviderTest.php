@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Laravel\Boost\Skills\Remote\GitHubRepository;
 use Laravel\Boost\Skills\Remote\GitHubSkillProvider;
@@ -72,7 +73,7 @@ it('throws exception when api fails with 404', function (): void {
 
     $fetcher = new GitHubSkillProvider(new GitHubRepository('owner', 'repo'));
 
-    expect(fn (): \Illuminate\Support\Collection => $fetcher->discoverSkills())
+    expect(fn (): Collection => $fetcher->discoverSkills())
         ->toThrow(RuntimeException::class, 'Failed to fetch repository tree from GitHub: Not Found (HTTP 404)');
 });
 
@@ -257,7 +258,7 @@ it('handles truncated tree response', function (): void {
     $fetcher = new GitHubSkillProvider(new GitHubRepository('owner', 'repo'));
     $skills = $fetcher->discoverSkills();
 
-    expect($skills)->toBeInstanceOf(\Illuminate\Support\Collection::class)
+    expect($skills)->toBeInstanceOf(Collection::class)
         ->and($skills)->toHaveCount(1);
 });
 
@@ -296,7 +297,7 @@ it('throws exception when rate limit is exceeded', function (): void {
 
     $fetcher = new GitHubSkillProvider(new GitHubRepository('owner', 'repo'));
 
-    expect(fn (): \Illuminate\Support\Collection => $fetcher->discoverSkills())
+    expect(fn (): Collection => $fetcher->discoverSkills())
         ->toThrow(RuntimeException::class, 'GitHub API rate limit exceeded');
 });
 
@@ -310,7 +311,7 @@ it('throws exception on invalid response structure', function (): void {
 
     $fetcher = new GitHubSkillProvider(new GitHubRepository('owner', 'repo'));
 
-    expect(fn (): \Illuminate\Support\Collection => $fetcher->discoverSkills())
+    expect(fn (): Collection => $fetcher->discoverSkills())
         ->toThrow(RuntimeException::class, 'Invalid response structure from GitHub Tree API');
 });
 

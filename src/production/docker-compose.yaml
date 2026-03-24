@@ -1,15 +1,15 @@
 services:
   app:
-    container_name: ${APP_NAME:-laravel-boost}
-    image: ghcr.io/${GHCR_OWNER}/${GHCR_IMAGE}:latest
-    volumes:
-      - C:\laragon\www\test-package:/var/www/html
+    container_name: ${APP_NAME:-laravel-boost-mcp}
+    image: ghcr.io/smt197/test-package:latest
     pull_policy: always
     restart: unless-stopped
+    ports:
+      - "${PORT:-8002}:8080"
     networks:
       - app-network
     environment:
-      APP_NAME: '${APP_NAME:-laravel-boost}'
+      APP_NAME: '${APP_NAME:-laravel-boost-mcp}'
       APP_ENV: '${APP_ENV:-production}'
       APP_DEBUG: '${APP_DEBUG:-false}'
       APP_KEY: '${APP_KEY}'

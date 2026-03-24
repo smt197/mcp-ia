@@ -1,8 +1,7 @@
 <?php
 
-use Laravel\Mcp\Facades\Mcp;
 use Laravel\Boost\Mcp\Boost;
+use Laravel\Mcp\Facades\Mcp;
 
 // Mcp::web();
-Mcp::web('/mcp',Boost::class);
-
+Mcp::web('/mcp', Boost::class);

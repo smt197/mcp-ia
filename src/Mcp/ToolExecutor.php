@@ -151,6 +151,7 @@ class ToolExecutor
 
             // Fallback: try replacing 'php-fpm' with 'php' in the path
             $cliBinary = str_replace('php-fpm', 'php', $binary);
+
             if ($cliBinary !== $binary && is_executable($cliBinary)) {
                 return $cliBinary;
             }

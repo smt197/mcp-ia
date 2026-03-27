@@ -74,6 +74,8 @@ class BoostServiceProvider extends ServiceProvider
 
     public function boot(Router $router): void
     {
+        $this->registerCommands();
+
         if (! $this->shouldRun()) {
             return;
         }
@@ -103,13 +105,20 @@ class BoostServiceProvider extends ServiceProvider
     protected function registerCommands(): void
     {
         if ($this->app->runningInConsole()) {
+            // Always register the internal tool executor
             $this->commands([
-                Console\StartCommand::class,
-                Console\InstallCommand::class,
-                Console\UpdateCommand::class,
                 Console\ExecuteToolCommand::class,
-                Console\AddSkillCommand::class,
             ]);
+
+            // Register other commands only if the provider should run
+            if ($this->shouldRun()) {
+                $this->commands([
+                    Console\StartCommand::class,
+                    Console\InstallCommand::class,
+                    Console\UpdateCommand::class,
+                    Console\AddSkillCommand::class,
+                ]);
+            }
         }
     }
 

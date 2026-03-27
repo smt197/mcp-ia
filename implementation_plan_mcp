@@ -1,0 +1,123 @@
+# Rediriger la génération de modules vers client-package
+
+Le [ModuleGeneratorService](file:///c:/laragon/www/laravel-boost/src/Services/ModuleGeneratorService.php#16-1152) actuel dans laravel-boost écrit directement les fichiers (Model, Migration, Controller, etc.) dans le filesystem de laravel-boost via `$this->app->path()` + `File::put()`. L'objectif est que ces fichiers soient créés dans **client-package** à la place.
+
+## Architecture cible
+
+```
+Angular → POST /api/orchestrate → client-package (Orchestrateur)
+                                        ↓
+                                   Appel MCP generate-module
+                                        ↓
+                               laravel-boost (MCP Server)
+                                        ↓
+                              Retourne JSON avec le CONTENU des fichiers
+                                        ↓
+                               client-package reçoit la réponse
+                                        ↓
+                          ModuleWriterService écrit les fichiers LOCALEMENT
+                                        ↓
+                          Exécute migrate + seed sur SA propre DB
+```
+
+> [!IMPORTANT]
+> Le changement clé est dans [ModuleGeneratorService](file:///c:/laragon/www/laravel-boost/src/Services/ModuleGeneratorService.php#16-1152) : au lieu de `File::put()`, on collecte le contenu et on retourne un tableau `files[]` avec `path` + `content`.
+
+## Proposed Changes
+
+### laravel-boost (MCP Server)
+
+---
+
+#### [MODIFY] [ModuleGeneratorService.php](file:///c:/laragon/www/laravel-boost/src/Services/ModuleGeneratorService.php)
+
+Ajouter un **mode `dry_run`** (ou `return_content`) au service :
+
+- Nouveau paramètre `bool $dryRun = false` dans le constructeur
+- Quand `$dryRun = true` : ne PAS appeler `File::put()`, stocker le contenu dans un tableau `$generatedFiles[]`
+- Ne PAS exécuter `Artisan::call('migrate')` ni `db:seed`
+- Ne PAS insérer en DB (Menu, ModuleManager)
+- Retourner un tableau structuré :
+
+```php
+[
+    'success' => true,
+    'files' => [
+        [
+            'relative_path' => 'app/Models/Product.php',
+            'content' => '<?php ...',
+            'type' => 'model',
+        ],
+        [
+            'relative_path' => 'database/migrations/2026_03_24_..._create_products_table.php',
+            'content' => '<?php ...',
+            'type' => 'migration',
+        ],
+        // ... controller, resource, collection, request, policy, seeder, factory
+    ],
+    'route_append' => [
+        'file' => 'routes/api.php',
+        'import_line' => "use App\\Http\\Controllers\\ProductController;",
+        'route_line' => "Orion::resource('products', ProductController::class);",
+    ],
+    'post_actions' => ['migrate', 'seed:ProductSeeder'],
+    'infrastructure' => [
+        // Menu et ModuleManager data à insérer dans client-package
+    ],
+]
+```
+
+---
+
+#### [MODIFY] [GenerateModule.php](file:///c:/laragon/www/laravel-boost/src/Mcp/Tools/GenerateModule.php)
+
+- Passer `dryRun: true` au [ModuleGeneratorService](file:///c:/laragon/www/laravel-boost/src/Services/ModuleGeneratorService.php#16-1152)
+- Retourner le JSON structuré via `Response::text(json_encode($result))`
+
+---
+
+### client-package (Orchestrateur)
+
+---
+
+#### [NEW] [ModuleWriterService.php](file:///c:/laragon/www/client-package/app/Services/ModuleWriterService.php)
+
+Nouveau service responsable d'écrire les fichiers dans le projet client-package :
+
+- Méthode `writeFiles(array $files)` : écrit chaque fichier avec `File::put(base_path($relativePath), $content)`
+- Méthode `appendRoute(array $routeData)` : ajoute l'import + la route dans [routes/api.php](file:///c:/laragon/www/client-package/routes/api.php)
+- Méthode `runPostActions(array $actions)` : exécute `php artisan migrate` et `db:seed`
+- Vérifie que les dossiers existent avant d'écrire (`File::ensureDirectoryExists`)
+
+---
+
+#### [MODIFY] [OrchestratorController.php](file:///c:/laragon/www/client-package/app/Http/Controllers/OrchestratorController.php)
+
+Modifier la méthode [callMcpTool()](file:///c:/laragon/www/client-package/app/Http/Controllers/OrchestratorController.php#134-144) ou ajouter un post-traitement :
+
+- Quand l'outil `generate-module` est appelé et retourne un résultat JSON avec `files[]`
+- Intercepter ce résultat et passer les données à `ModuleWriterService`
+- Écrire les fichiers dans client-package
+- Exécuter les post-actions (migrate, seed)
+- Retourner le résultat enrichi à l'IA
+
+---
+
+## Résumé des modifications
+
+| Projet | Fichier | Action |
+|--------|---------|--------|
+| laravel-boost | [ModuleGeneratorService.php](file:///c:/laragon/www/laravel-boost/src/Services/ModuleGeneratorService.php) | Ajouter mode `dryRun` qui retourne contenu au lieu d'écrire |
+| laravel-boost | [GenerateModule.php](file:///c:/laragon/www/laravel-boost/src/Mcp/Tools/GenerateModule.php) | Forcer `dryRun: true`, retourner JSON |
+| client-package | `ModuleWriterService.php` | **[NEW]** Écrire les fichiers localement |
+| client-package | [OrchestratorController.php](file:///c:/laragon/www/client-package/app/Http/Controllers/OrchestratorController.php) | Intercepter résultat MCP et écrire via le service |
+
+## Verification Plan
+
+### Test Manuel
+1. Démarrer laravel-boost (Docker)
+2. Démarrer client-package (`php artisan serve`)
+3. Envoyer un POST vers `http://localhost:8000/api/orchestrate` avec le prompt : `"Crée un module products avec les champs name:string:required et price:number:required"`
+4. Vérifier que les fichiers sont créés dans `c:\laragon\www\client-package\app\Models\Product.php`, etc.
+5. Vérifier qu'AUCUN fichier n'a été créé dans laravel-boost
+6. Vérifier que la migration a été exécutée sur la DB de client-package

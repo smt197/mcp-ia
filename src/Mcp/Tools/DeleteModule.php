@@ -6,7 +6,6 @@ namespace Laravel\Boost\Mcp\Tools;
 
 use Laravel\Boost\Services\ModuleGeneratorService;
 use Laravel\Mcp\Context;
-use Laravel\Mcp\Resource;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Tool;
 
@@ -19,7 +18,7 @@ class DeleteModule extends Tool
 
     public function description(): string
     {
-        return "Supprime un module complet (Modèle, Migration, Contrôleur, etc.) et ses configurations associées.";
+        return 'Supprime un module complet (Modèle, Migration, Contrôleur, etc.) et ses configurations associées.';
     }
 
     public function schema(): array

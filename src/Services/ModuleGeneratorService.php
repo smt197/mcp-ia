@@ -1251,6 +1251,7 @@ PHP;
 
         // Delete migrations matching pattern
         $migrations = File::glob($this->app->databasePath('migrations/*_create_'.$tableName.'_table.php'));
+
         foreach ($migrations as $migration) {
             File::delete($migration);
         }

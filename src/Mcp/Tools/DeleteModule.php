@@ -4,54 +4,65 @@ declare(strict_types=1);
 
 namespace Laravel\Boost\Mcp\Tools;
 
+use Exception;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Boost\Services\ModuleGeneratorService;
-use Laravel\Mcp\Context;
+use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
-use Laravel\Mcp\Tool;
+use Laravel\Mcp\Server\Tool;
 
 class DeleteModule extends Tool
 {
-    public function name(): string
-    {
-        return 'delete-module';
-    }
+    /**
+     * The tool's description.
+     */
+    protected string $description = 'Supprime un module complet (Modèle, Migration, Contrôleur, etc.) et ses configurations associées.';
 
-    public function description(): string
-    {
-        return 'Supprime un module complet (Modèle, Migration, Contrôleur, etc.) et ses configurations associées.';
-    }
-
-    public function schema(): array
+    /**
+     * Get the tool's input schema.
+     */
+    public function schema(JsonSchema $schema): array
     {
         return [
-            'type' => 'object',
-            'properties' => [
-                'module_name' => [
-                    'type' => 'string',
-                    'description' => 'Le nom du module à supprimer (ex: Articles, Products)',
-                ],
-            ],
-            'required' => ['module_name'],
+            'module_name' => $schema->string()
+                ->description('Le nom du module à supprimer (ex: Articles, Products)')
+                ->required(),
         ];
     }
 
-    public function handle(Context $context, array $arguments): Response
+    /**
+     * Handle the tool request.
+     */
+    public function handle(Request $request, Application $app): Response
     {
-        $moduleName = $arguments['module_name'];
+        $moduleName = $request->get('module_name');
 
-        /** @var ModuleGeneratorService $service */
-        $service = app(ModuleGeneratorService::class, [
-            'moduleName' => $moduleName,
-            'fields' => [], // Fields are not needed for deletion
-            'dryRun' => true, // Always dry-run for remote orchestrator
-        ]);
-
-        $result = $service->delete();
-
-        if (! $result['success']) {
-            return Response::error($result['message']);
+        if (empty($moduleName)) {
+            return Response::error('module_name is required');
         }
 
-        return Response::json($result);
+        try {
+            /** @var ModuleGeneratorService $service */
+            $service = new ModuleGeneratorService(
+                $app,
+                $moduleName,
+                fields: [], // Non requis pour la suppression
+                identifierField: 'id',
+                roles: [],
+                dryRun: true // Toujours dry-run pour l'orchestrateur distant
+            );
+
+            $result = $service->delete();
+
+            if (! $result['success']) {
+                return Response::error($result['message']);
+            }
+
+            // Retourner le JSON structuré pour l'orchestrateur
+            return Response::text(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        } catch (Exception $e) {
+            return Response::error('Module deletion failed: '.$e->getMessage());
+        }
     }
 }

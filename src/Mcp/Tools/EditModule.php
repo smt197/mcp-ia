@@ -106,13 +106,27 @@ class EditModule extends Tool
         }
     }
 
-    private function parseFields(array $fieldsStrings): array
+    private function parseFields(array $fieldsInputs): array
     {
         $fields = [];
-        foreach ($fieldsStrings as $fieldString) {
-            $parts = explode(':', $fieldString, 3);
-            if (count($parts) < 2) continue;
-            
+        foreach ($fieldsInputs as $input) {
+            // Si l'IA envoie un objet au lieu d'une chaîne (comportement fréquent des modèles récents)
+            if (is_array($input) || is_object($input)) {
+                $input = (array) $input;
+                $fields[] = [
+                    'name' => $input['name'] ?? ($input['field'] ?? ''),
+                    'type' => $input['type'] ?? 'string',
+                    'required' => (bool) ($input['required'] ?? (! ($input['nullable'] ?? true))),
+                ];
+                continue;
+            }
+
+            // Sinon on traite comme une chaîne "name:type:required"
+            $parts = explode(':', (string) $input, 3);
+            if (count($parts) < 2) {
+                continue;
+            }
+
             $flag = strtolower($parts[2] ?? 'nullable');
             $fields[] = [
                 'name' => $parts[0],
@@ -120,6 +134,7 @@ class EditModule extends Tool
                 'required' => ($flag === 'required'),
             ];
         }
+
         return $fields;
     }
 }

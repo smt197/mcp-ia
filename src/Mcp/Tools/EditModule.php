@@ -127,12 +127,27 @@ class EditModule extends Tool
     private function parseFields(array $fieldsInputs): array
     {
         $fields = [];
-        foreach ($fieldsInputs as $input) {
-            // Si l'IA envoie un objet au lieu d'une chaîne (comportement fréquent des modèles récents)
+        foreach ($fieldsInputs as $index => $input) {
+            // Si l'IA envoie un objet (comportement fréquent)
             if (is_array($input) || is_object($input)) {
                 $input = (array) $input;
+                
+                // Cas 1 : Map {"name": "type:flag"} (Vu dans les logs)
+                if (count($input) === 1 && !isset($input['name']) && !isset($input['field'])) {
+                    $name = (string) array_key_first($input);
+                    $value = (string) $input[$name];
+                    $parts = explode(':', $value, 2);
+                    $fields[] = [
+                        'name' => $name,
+                        'type' => $parts[0] ?? 'string',
+                        'required' => (isset($parts[1]) && str_contains(strtolower($parts[1]), 'required')),
+                    ];
+                    continue;
+                }
+
+                // Cas 2 : Objet {"name": "...", "type": "...", "required": ...}
                 $fields[] = [
-                    'name' => $input['name'] ?? ($input['field'] ?? ''),
+                    'name' => $input['name'] ?? ($input['field'] ?? ($input['column'] ?? '')),
                     'type' => $input['type'] ?? 'string',
                     'required' => (bool) ($input['required'] ?? (! ($input['nullable'] ?? true))),
                 ];

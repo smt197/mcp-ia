@@ -1258,4 +1258,128 @@ PHP;
 
         return $results;
     }
+
+    public function edit(array $allFields, array $changes = []): array
+    {
+        $this->fields = $allFields; // Mettre à jour avec l'état complet souhaité
+
+        $results = [];
+
+        try {
+            // Régénérer tous les fichiers "managés" avec les nouveaux champs
+            $results['model'] = $this->generateModel();
+            $results['factory'] = $this->generateFactory();
+            $results['controller'] = $this->generateController();
+            $results['resource'] = $this->generateResource();
+            $results['collection'] = $this->generateCollection();
+            $results['request'] = $this->generateRequest();
+            $results['policy'] = $this->generatePolicy();
+            $results['seeder'] = $this->generateSeeder();
+
+            // Générer la migration d'altération si des changements sont fournis
+            if (! empty($changes)) {
+                $results['alter_migration'] = $this->generateAlterMigration($changes);
+            }
+
+            if ($this->dryRun) {
+                return [
+                    'success' => true,
+                    'message' => "Module '{$this->moduleName}' updated instructions generated (dry run)",
+                    'files' => $this->generatedFiles,
+                    'post_actions' => ['migrate'],
+                    'infrastructure' => [
+                        'module_manager' => [
+                            'module_name' => $this->moduleName,
+                            'fields' => $this->fields,
+                        ],
+                    ],
+                ];
+            }
+
+            // Mode normal : mettre à jour le ModuleManager localement
+            $this->addToModuleManager();
+
+            return [
+                'success' => true,
+                'message' => "Module '{$this->moduleName}' updated successfully",
+                'files' => $results,
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Module update failed: '.$e->getMessage(),
+                'error' => $e->getTraceAsString(),
+            ];
+        }
+    }
+
+    protected function generateAlterMigration(array $changes): string
+    {
+        $timestamp = date('Y_m_d_His');
+        $tableName = Str::snake($this->moduleName);
+        $migrationName = "update_{$tableName}_table_".time();
+
+        $upContent = '';
+        $downContent = '';
+
+        // Ajout de colonnes
+        if (isset($changes['added']) && is_array($changes['added'])) {
+            foreach ($changes['added'] as $field) {
+                $type = $this->getMigrationType($field['type']);
+                $nullable = (! isset($field['required']) || ! $field['required']) ? '->nullable()' : '';
+                $upContent .= "\n            \$table->{$type}('{$field['name']}'){$nullable};";
+                $downContent .= "\n            \$table->dropColumn('{$field['name']}');";
+            }
+        }
+
+        // Renommage de colonnes
+        if (isset($changes['renamed']) && is_array($changes['renamed'])) {
+            foreach ($changes['renamed'] as $change) {
+                $oldName = $change['old'] ?? '';
+                $newName = $change['new'] ?? '';
+                if ($oldName && $newName) {
+                    $upContent .= "\n            \$table->renameColumn('{$oldName}', '{$newName}');";
+                    $downContent .= "\n            \$table->renameColumn('{$newName}', '{$oldName}');";
+                }
+            }
+        }
+
+        // Modification de types
+        if (isset($changes['modified']) && is_array($changes['modified'])) {
+            foreach ($changes['modified'] as $field) {
+                $type = $this->getMigrationType($field['type']);
+                $upContent .= "\n            \$table->{$type}('{$field['name']}')->change();";
+            }
+        }
+
+        $content = "<?php
+
+declare(strict_types=1);
+
+use Illuminate\\Database\\Migrations\\Migration;
+use Illuminate\\Database\\Schema\\Blueprint;
+use Illuminate\\Support\\Facades\\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('{$tableName}', function (Blueprint \$table) {
+            {$upContent}
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('{$tableName}', function (Blueprint \$table) {
+            {$downContent}
+        });
+    }
+};
+";
+
+        $path = $this->app->databasePath("migrations/{$timestamp}_{$migrationName}.php");
+
+        return $this->writeOrCollect($path, $content, 'migration');
+    }
 }

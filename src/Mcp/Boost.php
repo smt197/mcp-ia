@@ -16,6 +16,7 @@ use Laravel\Boost\Mcp\Tools\DatabaseConnections;
 use Laravel\Boost\Mcp\Tools\DatabaseQuery;
 use Laravel\Boost\Mcp\Tools\DatabaseSchema;
 use Laravel\Boost\Mcp\Tools\DeleteModule;
+use Laravel\Boost\Mcp\Tools\EditModule;
 use Laravel\Boost\Mcp\Tools\GenerateModule;
 use Laravel\Boost\Mcp\Tools\GetAbsoluteUrl;
 use Laravel\Boost\Mcp\Tools\GetConfig;
@@ -98,6 +99,7 @@ class Boost extends Server
             DatabaseQuery::class,
             DatabaseSchema::class,
             DeleteModule::class,
+            EditModule::class,
             GenerateModule::class,
             GetAbsoluteUrl::class,
             GetConfig::class,

@@ -1194,4 +1194,68 @@ PHP;
             ]);
         }
     }
+
+    public function delete(): array
+    {
+        $tableName = Str::snake($this->moduleName);
+        $pluralName = strtolower($this->moduleName);
+
+        $filesToDelete = [
+            $this->app->path("Models/{$this->studlySingular}.php"),
+            $this->app->databasePath("factories/{$this->studlySingular}Factory.php"),
+            $this->app->path("Http/Controllers/{$this->studlySingular}Controller.php"),
+            $this->app->path("Http/Resources/{$this->studlySingular}Resource.php"),
+            $this->app->path("Http/Resources/Collections/{$this->studlySingular}Collection.php"),
+            $this->app->path("Http/Requests/{$this->studlySingular}Request.php"),
+            $this->app->path("Policies/{$this->studlySingular}Policy.php"),
+            $this->app->databasePath("seeders/{$this->studlySingular}Seeder.php"),
+        ];
+
+        // Migrations are tricky due to timestamps. We return a glob pattern for the client to find it.
+        $migrationPattern = "database/migrations/*_create_{$tableName}_table.php";
+
+        $relativeFiles = [];
+        $basePath = $this->app->basePath();
+
+        foreach ($filesToDelete as $path) {
+            $relative = str_replace($basePath.DIRECTORY_SEPARATOR, '', $path);
+            $relativeFiles[] = str_replace('\\', '/', $relative);
+        }
+
+        $results = [
+            'success' => true,
+            'message' => "Module '{$this->moduleName}' deletion instructions generated",
+            'files_to_delete' => $relativeFiles,
+            'migration_pattern' => $migrationPattern,
+            'route_removal' => [
+                'file' => 'routes/api.php',
+                'import_line' => "use App\\Http\\Controllers\\{$this->studlySingular}Controller;",
+                'route_line_pattern' => "Orion::resource('{$pluralName}', {$this->studlySingular}Controller::class);",
+            ],
+            'infrastructure' => [
+                'menu_slug' => Str::slug($this->moduleName),
+                'module_manager_slug' => Str::slug($this->moduleName),
+            ],
+        ];
+
+        if ($this->dryRun) {
+            return $results;
+        }
+
+        // Real deletion (if running locally on MCP server)
+        foreach ($filesToDelete as $path) {
+            if (File::exists($path)) {
+                File::delete($path);
+            }
+        }
+
+        // Delete migrations matching pattern
+        $migrations = File::glob($this->app->databasePath('migrations/*_create_'.$tableName.'_table.php'));
+
+        foreach ($migrations as $migration) {
+            File::delete($migration);
+        }
+
+        return $results;
+    }
 }

@@ -17,7 +17,7 @@ class EditModule extends Tool
     /**
      * The tool's description.
      */
-    protected string $description = 'Modifie un module existant : ajoute des champs, les renomme ou modifie leurs types. Génère une migration d\'altération et met à jour les fichiers (Model, Controller, etc.).';
+    protected string $description = 'Modifie un module existant. Tu DOIS fournir la liste complète des champs ET détailler les changements dans l\'objet "changes" pour générer la migration.';
 
     /**
      * Get the tool's input schema.
@@ -33,13 +33,19 @@ class EditModule extends Tool
                 ->description('La liste COMPLÈTE de TOUS les champs souhaités pour le module après modification.')
                 ->required(),
             'changes' => $schema->object([
-                'added' => $schema->array()->items($schema->string()->description('Format "name:type:required|nullable"'))->description('Nouveaux champs à ajouter via une migration.'),
-                'renamed' => $schema->array()->items($schema->object([
-                    'old' => $schema->string()->description('Ancien nom du champ'),
-                    'new' => $schema->string()->description('Nouveau nom du champ'),
-                ]))->description('Champs à renommer.'),
-                'modified' => $schema->array()->items($schema->string()->description('Format "name:type:required|nullable"'))->description('Champs dont le type ou la nullabilité a changé.'),
-            ])->description('Détails des changements spécifiques pour la migration d\'altération.')
+                'added' => $schema->array()
+                    ->items($schema->string()->description('Format "name:type:required|nullable"'))
+                    ->description('OBLIGATOIRE si ajout : Liste des NOUVEAUX champs à ajouter (ex: ["prix:number:required"]).'),
+                'renamed' => $schema->array()
+                    ->items($schema->object([
+                        'old' => $schema->string()->description('Ancien nom'),
+                        'new' => $schema->string()->description('Nouveau nom'),
+                    ]))
+                    ->description('Facultatif : Liste des colonnes à renommer.'),
+                'modified' => $schema->array()
+                    ->items($schema->string()->description('Format "name:type:required|nullable"'))
+                    ->description('Facultatif : Colonnes dont le type change.'),
+            ])->description('OBJET REQUIS pour la migration. Ne pas envoyer de texte ici, seulement l\'objet structuré.')
             ->required(),
         ];
     }
@@ -57,18 +63,23 @@ class EditModule extends Tool
             return Response::error('module_name and fields are required');
         }
 
+        // Si l'IA a envoyé une chaîne au lieu d'un objet pour changes
+        if (is_string($changesRaw)) {
+            return Response::error('Le paramètre "changes" doit être un OBJET JSON avec une clé "added", "renamed" ou "modified", pas une simple phrase.');
+        }
+
         // Parser la liste complète des champs
         $allFields = $this->parseFields($fieldsStrings);
         
         // Parser les changements structurés
         $changes = [];
-        if (isset($changesRaw['added'])) {
+        if (isset($changesRaw['added']) && is_array($changesRaw['added'])) {
             $changes['added'] = $this->parseFields($changesRaw['added']);
         }
-        if (isset($changesRaw['renamed'])) {
+        if (isset($changesRaw['renamed']) && is_array($changesRaw['renamed'])) {
             $changes['renamed'] = $changesRaw['renamed'];
         }
-        if (isset($changesRaw['modified'])) {
+        if (isset($changesRaw['modified']) && is_array($changesRaw['modified'])) {
             $changes['modified'] = $this->parseFields($changesRaw['modified']);
         }
 
@@ -77,7 +88,7 @@ class EditModule extends Tool
             $service = new ModuleGeneratorService(
                 $app,
                 $moduleName,
-                fields: [], // Sera écrasé par edit()
+                fields: [], 
                 identifierField: 'id',
                 roles: [],
                 dryRun: true

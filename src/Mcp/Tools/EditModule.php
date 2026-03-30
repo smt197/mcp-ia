@@ -89,15 +89,23 @@ class EditModule extends Tool
         }
         
         if (isset($changesRaw['modified']) && is_array($changesRaw['modified'])) {
-            $changes['modified'] = $this->parseFields($changesRaw['modified']);
-            // If the AI used it as a rename (occurs sometimes)
+            $modifiedInputs = [];
+            
             foreach ($changesRaw['modified'] as $m) {
-                if (isset($m['newName']) || isset($m['new_name'])) {
-                     $changes['renamed'][] = [
-                        'old' => $m['field'] ?? ($m['name'] ?? ''),
-                        'new' => $m['newName'] ?? ($m['new_name'] ?? ''),
+                // Si l'IA a utilisé 'modified' pour un renommage (comportement fréquent)
+                if (isset($m['newName']) || isset($m['new_name']) || isset($m['new'])) {
+                    $changes['renamed'][] = [
+                        'old' => $m['field'] ?? ($m['name'] ?? ($m['column'] ?? ($m['old'] ?? ''))),
+                        'new' => $m['newName'] ?? ($m['new_name'] ?? ($m['new'] ?? '')),
                     ];
+                } else {
+                    // Sinon c'est une vraie modification
+                    $modifiedInputs[] = $m;
                 }
+            }
+            
+            if (!empty($modifiedInputs)) {
+                $changes['modified'] = $this->parseFields($modifiedInputs);
             }
         }
 

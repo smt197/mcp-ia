@@ -73,14 +73,32 @@ class EditModule extends Tool
         
         // Parser les changements structurés
         $changes = [];
+        
         if (isset($changesRaw['added']) && is_array($changesRaw['added'])) {
             $changes['added'] = $this->parseFields($changesRaw['added']);
         }
+        
         if (isset($changesRaw['renamed']) && is_array($changesRaw['renamed'])) {
-            $changes['renamed'] = $changesRaw['renamed'];
+            $changes['renamed'] = [];
+            foreach ($changesRaw['renamed'] as $r) {
+                $changes['renamed'][] = [
+                    'old' => $r['old'] ?? ($r['oldName'] ?? ($r['old_name'] ?? ($r['field'] ?? ''))),
+                    'new' => $r['new'] ?? ($r['newName'] ?? ($r['new_name'] ?? '')),
+                ];
+            }
         }
+        
         if (isset($changesRaw['modified']) && is_array($changesRaw['modified'])) {
             $changes['modified'] = $this->parseFields($changesRaw['modified']);
+            // If the AI used it as a rename (occurs sometimes)
+            foreach ($changesRaw['modified'] as $m) {
+                if (isset($m['newName']) || isset($m['new_name'])) {
+                     $changes['renamed'][] = [
+                        'old' => $m['field'] ?? ($m['name'] ?? ''),
+                        'new' => $m['newName'] ?? ($m['new_name'] ?? ''),
+                    ];
+                }
+            }
         }
 
         try {

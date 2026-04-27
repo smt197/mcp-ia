@@ -6,6 +6,7 @@ namespace Laravel\Boost\Mcp\Tools;
 
 use DOMDocument;
 use DOMXPath;
+use Exception;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -50,7 +51,7 @@ class ScrapeWebsite extends Tool
         $url = $request->get('url');
         $selectors = $request->get('selectors', []);
 
-        if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+        if (empty($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
             return Response::error('A valid URL is required.');
         }
 
@@ -58,7 +59,7 @@ class ScrapeWebsite extends Tool
             $response = Http::timeout(30)->get($url);
 
             if ($response->failed()) {
-                return Response::error("Failed to fetch URL. Status code: " . $response->status());
+                return Response::error('Failed to fetch URL. Status code: '.$response->status());
             }
 
             $html = $response->body();
@@ -69,7 +70,7 @@ class ScrapeWebsite extends Tool
 
             // Suppress warnings for malformed HTML
             libxml_use_internal_errors(true);
-            $dom = new DOMDocument();
+            $dom = new DOMDocument;
             $dom->loadHTML($html, LIBXML_NOBLANKS | LIBXML_NOERROR);
             libxml_clear_errors();
 
@@ -88,7 +89,7 @@ class ScrapeWebsite extends Tool
                     if ($name && $xpathQuery) {
                         $elements = $xpath->query($xpathQuery);
                         $extracted = [];
-                        
+
                         if ($elements !== false) {
                             foreach ($elements as $element) {
                                 $extracted[] = trim(preg_replace('/\s+/', ' ', $element->nodeValue ?? ''));
@@ -104,8 +105,8 @@ class ScrapeWebsite extends Tool
                 'url' => $url,
                 'data' => $result,
             ]);
-        } catch (\Exception $e) {
-            return Response::error('Scraping failed: ' . $e->getMessage());
+        } catch (Exception $e) {
+            return Response::error('Scraping failed: '.$e->getMessage());
         }
     }
 }

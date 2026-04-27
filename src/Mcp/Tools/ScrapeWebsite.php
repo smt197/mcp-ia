@@ -34,12 +34,8 @@ class ScrapeWebsite extends Tool
                 ->description('The URL of the website to scrape.')
                 ->required(),
             'selectors' => $schema->array()
-                ->items($schema->object()->properties([
-                    'name' => $schema->string()->description('Key name for the extracted data in the result JSON.')->required(),
-                    'xpath' => $schema->string()->description('XPath selector to locate elements.'),
-                    'css' => $schema->string()->description('CSS selector to locate elements (not implemented, use xpath instead).'),
-                ]))
-                ->description('Array of objects with "name" and "xpath" to extract multiple elements. If omitted, extracts the body text.'),
+                ->items($schema->object())
+                ->description('Array of objects with "name" and "xpath" (or "css") to extract multiple elements. Example: [{"name": "title", "xpath": "//h1"}]. If omitted, extracts the body text.'),
         ];
     }
 

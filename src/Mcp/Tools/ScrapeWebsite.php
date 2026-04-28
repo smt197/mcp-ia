@@ -37,8 +37,8 @@ class ScrapeWebsite extends Tool
                 ->items($schema->object())
                 ->description('Array of objects with "name" and "xpath" (or "css") to extract multiple elements. Example: [{"name": "title", "xpath": "//h1"}]. If omitted, extracts the body text.'),
             'max_length' => $schema->integer()
-                ->description('Maximum number of characters to return for the content. Defaults to 20,000.')
-                ->default(20000),
+                ->description('Maximum number of characters to return for the content. Defaults to 10,000.')
+                ->default(10000),
         ];
     }
 
@@ -49,7 +49,7 @@ class ScrapeWebsite extends Tool
     {
         $url = $request->get('url');
         $selectors = $request->get('selectors', []);
-        $maxLength = $request->get('max_length', 20000);
+        $maxLength = $request->get('max_length', 10000);
 
         if (empty($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
             return Response::error('A valid URL is required.');

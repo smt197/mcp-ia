@@ -81,11 +81,11 @@ class ScrapeWebsite extends Tool
                 // Return all text if no selectors provided
                 $bodyNode = $dom->getElementsByTagName('body')->item(0);
                 $content = $bodyNode ? trim(preg_replace('/\s+/', ' ', $bodyNode->nodeValue ?? '')) : '';
-                
+
                 if (strlen($content) > $maxLength) {
-                    $content = mb_substr($content, 0, $maxLength) . '... [truncated]';
+                    $content = mb_substr($content, 0, $maxLength).'... [truncated]';
                 }
-                
+
                 $result['content'] = $content;
             } else {
                 foreach ($selectors as $selector) {

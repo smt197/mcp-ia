@@ -41,6 +41,9 @@ class GenerateModule extends Tool
             'roles' => $schema->array()
                 ->items($schema->string()->description('Role name'))
                 ->description('Array of roles that can access this module. Defaults to ["user"].'),
+            'initial_data' => $schema->array()
+                ->items($schema->object())
+                ->description('Optional array of initial data objects to be inserted by the Seeder. Example: [{"title": "Hello", "content": "World"}]'),
         ];
     }
 
@@ -104,6 +107,7 @@ class GenerateModule extends Tool
         // Get optional parameters
         $identifierField = $request->get('identifier_field', config('boost.module_generator.default_identifier', 'id'));
         $roles = $request->get('roles', config('boost.module_generator.default_roles', ['user']));
+        $initialData = $request->get('initial_data');
 
         // Validate identifier field
         if (! in_array($identifierField, ['id', 'slug'], true)) {
@@ -119,7 +123,8 @@ class GenerateModule extends Tool
                 $fields,
                 $identifierField,
                 $roles,
-                dryRun: true
+                dryRun: true,
+                initialData: $initialData
             );
 
             $result = $generator->generate();

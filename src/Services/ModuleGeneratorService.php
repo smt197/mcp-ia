@@ -31,12 +31,14 @@ class ModuleGeneratorService
 
     protected array $roles;
 
+    protected ?array $initialData;
+
     protected bool $dryRun;
 
     /** @var array<int, array{relative_path: string, content: string, type: string}> */
     protected array $generatedFiles = [];
 
-    public function __construct(Application $app, string $moduleName, array $fields, string $identifierField = 'id', array $roles = ['user'], bool $dryRun = false)
+    public function __construct(Application $app, string $moduleName, array $fields, string $identifierField = 'id', array $roles = ['user'], bool $dryRun = false, ?array $initialData = null)
     {
         $this->app = $app;
         $this->moduleName = $moduleName;
@@ -47,6 +49,7 @@ class ModuleGeneratorService
         $this->identifierField = $identifierField;
         $this->roles = $roles;
         $this->dryRun = $dryRun;
+        $this->initialData = $initialData;
         $this->generatedFiles = [];
     }
 
@@ -725,6 +728,13 @@ class {$this->studlySingular}Policy
 
     protected function generateSeeder(): string
     {
+        if ($this->initialData) {
+            $dataExport = var_export($this->initialData, true);
+            $runContent = "        \$data = {$dataExport};\n\n        foreach (\$data as \$item) {\n            {$this->studlySingular}::create(\$item);\n        }";
+        } else {
+            $runContent = "        {$this->studlySingular}::factory()->count(10)->create();";
+        }
+
         $content = "<?php
 
 declare(strict_types=1);
@@ -738,7 +748,7 @@ class {$this->studlySingular}Seeder extends Seeder
 {
     public function run(): void
     {
-        {$this->studlySingular}::factory()->count(10)->create();
+{$runContent}
     }
 }
 ";

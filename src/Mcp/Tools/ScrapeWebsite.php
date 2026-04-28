@@ -20,7 +20,7 @@ class ScrapeWebsite extends Tool
     /**
      * The tool's description.
      */
-    protected string $description = 'Scrape data from any website using HTTP GET and XPath/CSS selectors, returning the extracted text as JSON.';
+    protected string $description = 'Scrape data from any website. Returns extracted text. Use selectors to limit data and avoid context overflow.';
 
     /**
      * Get the tool's input schema.
@@ -36,6 +36,9 @@ class ScrapeWebsite extends Tool
             'selectors' => $schema->array()
                 ->items($schema->object())
                 ->description('Array of objects with "name" and "xpath" (or "css") to extract multiple elements. Example: [{"name": "title", "xpath": "//h1"}]. If omitted, extracts the body text.'),
+            'max_length' => $schema->integer()
+                ->description('Maximum number of characters to return for the content. Defaults to 20,000.')
+                ->default(20000),
         ];
     }
 
@@ -46,6 +49,7 @@ class ScrapeWebsite extends Tool
     {
         $url = $request->get('url');
         $selectors = $request->get('selectors', []);
+        $maxLength = $request->get('max_length', 20000);
 
         if (empty($url) || ! filter_var($url, FILTER_VALIDATE_URL)) {
             return Response::error('A valid URL is required.');
@@ -76,7 +80,13 @@ class ScrapeWebsite extends Tool
             if (empty($selectors)) {
                 // Return all text if no selectors provided
                 $bodyNode = $dom->getElementsByTagName('body')->item(0);
-                $result['content'] = $bodyNode ? trim(preg_replace('/\s+/', ' ', $bodyNode->nodeValue ?? '')) : '';
+                $content = $bodyNode ? trim(preg_replace('/\s+/', ' ', $bodyNode->nodeValue ?? '')) : '';
+                
+                if (strlen($content) > $maxLength) {
+                    $content = mb_substr($content, 0, $maxLength) . '... [truncated]';
+                }
+                
+                $result['content'] = $content;
             } else {
                 foreach ($selectors as $selector) {
                     $name = $selector['name'] ?? null;

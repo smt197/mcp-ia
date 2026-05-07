@@ -97,7 +97,7 @@ class GenerateModule extends Tool
                 return Response::error("Field at index {$index} is missing required properties (name, type, required)");
             }
 
-            $validTypes = ['string', 'number', 'boolean', 'Date', 'File', 'textarea', 'quill-editor', 'email', 'password'];
+            $validTypes = ['string', 'number', 'boolean', 'Date', 'File', 'textarea', 'quill-editor', 'email', 'password', 'link', 'url'];
 
             if (! in_array($field['type'], $validTypes, true)) {
                 return Response::error("Invalid field type '{$field['type']}' for field '{$field['name']}'. Valid types: ".implode(', ', $validTypes));

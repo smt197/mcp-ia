@@ -458,7 +458,7 @@ class {$this->studlySingular}Controller extends Controller
     protected function getMigrationType(string $type): string
     {
         return match ($type) {
-            'string', 'email', 'password' => 'string',
+            'string', 'email', 'password', 'link', 'url' => 'string',
             'number' => 'integer',
             'boolean' => 'boolean',
             'Date' => 'timestamp',
@@ -501,6 +501,7 @@ class {$this->studlySingular}Controller extends Controller
             'textarea' => 'fake()->paragraph(5)',
             'email' => 'fake()->unique()->safeEmail()',
             'password' => 'bcrypt(\'password\')',
+            'link', 'url' => 'fake()->url()',
             default => 'fake()->sentence()',
         };
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Laravel\Boost\Mcp;
 
+use App\Mcp\Tools\Crawl4AiMarkdown;
 use InvalidArgumentException;
 use Laravel\Boost\Mcp\Methods\CallToolWithExecutor;
 use Laravel\Boost\Mcp\Prompts\LaravelCodeSimplifier\LaravelCodeSimplifier;
@@ -110,6 +111,7 @@ class Boost extends Server
             ListAvailableEnvVars::class,
             ListRoutes::class,
             ReadLogEntries::class,
+            Crawl4AiMarkdown::class,
             ScrapeWebsite::class,
             SearchDocs::class,
             Tinker::class,

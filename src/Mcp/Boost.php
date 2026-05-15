@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Laravel\Boost\Mcp;
 
-use App\Mcp\Tools\Crawl4AiMarkdown;
 use InvalidArgumentException;
 use Laravel\Boost\Mcp\Methods\CallToolWithExecutor;
 use Laravel\Boost\Mcp\Prompts\LaravelCodeSimplifier\LaravelCodeSimplifier;
@@ -13,6 +12,7 @@ use Laravel\Boost\Mcp\Prompts\UpgradeLivewirev4\UpgradeLivewireV4;
 use Laravel\Boost\Mcp\Resources\PackageGuidelineResource;
 use Laravel\Boost\Mcp\Tools\ApplicationInfo;
 use Laravel\Boost\Mcp\Tools\BrowserLogs;
+use Laravel\Boost\Mcp\Tools\Crawl4AiMarkdown;
 use Laravel\Boost\Mcp\Tools\DatabaseConnections;
 use Laravel\Boost\Mcp\Tools\DatabaseQuery;
 use Laravel\Boost\Mcp\Tools\DatabaseSchema;

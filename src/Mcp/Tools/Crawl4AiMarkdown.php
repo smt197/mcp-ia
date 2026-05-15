@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Mcp\Tools;
+namespace Laravel\Boost\Mcp\Tools;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -10,8 +10,10 @@ use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\Facades\Http;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
+use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 
+#[Name('crawl4ai-markdown')]
 class Crawl4AiMarkdown extends Tool
 {
     protected string $description = 'Scrape a URL with the Crawl4AI container and return clean markdown.';
@@ -39,7 +41,12 @@ class Crawl4AiMarkdown extends Tool
 
     public function handle(Request $request, Application $app): Response
     {
-        $baseUrl = rtrim((string) env('CRAWL4AI_BASE_URL', 'http://crawl4ai.192.168.1.14.sslip.io:11235'), '/');
+        $baseUrl = rtrim((string) config('services.crawl4ai.base_url', 'http://crawl4ai:11235'), '/');
+
+        if (empty($baseUrl)) {
+            return Response::error('CRAWL4AI_BASE_URL is not configured. Set it in your .env file.');
+        }
+
         $timeout = (int) $request->get('timeout', 120);
 
         $response = Http::timeout($timeout)->post($baseUrl.'/md', [

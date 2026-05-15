@@ -42,7 +42,7 @@ class Crawl4AiMarkdown extends Tool
         $baseUrl = rtrim((string) env('CRAWL4AI_BASE_URL', 'http://crawl4ai.192.168.1.14.sslip.io:11235'), '/');
         $timeout = (int) $request->get('timeout', 120);
 
-        $response = Http::timeout($timeout)->post($baseUrl . '/md', [
+        $response = Http::timeout($timeout)->post($baseUrl.'/md', [
             'url' => $request->get('url'),
             'f' => $request->get('filter', 'fit'),
             'q' => $request->get('query'),
@@ -50,7 +50,7 @@ class Crawl4AiMarkdown extends Tool
         ]);
 
         if ($response->failed()) {
-            return Response::error('Crawl4AI failed with status ' . $response->status() . ': ' . $response->body());
+            return Response::error('Crawl4AI failed with status '.$response->status().': '.$response->body());
         }
 
         return Response::json($response->json());

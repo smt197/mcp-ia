@@ -63,6 +63,7 @@ Ce guide documente pas a pas les patterns a suivre pour ajouter de nouvelles fon
 |-------|-------------|:--------:|------------|
 | `ApplicationInfo` | Infos completes de l'app (PHP, Laravel, packages, models Eloquent) | Oui | aucun |
 | `BrowserLogs` | Lire les N derniers logs du navigateur (debug frontend/JS) | Oui | `entries` (int, requis) |
+| `GenerateModule` | Permet de generer un module avec tous ces ressources, models, migrations... | Oui | `entries` (int, requis) |
 | `DatabaseConnections` | Lister les connexions BDD configurees | Oui | aucun |
 | `DatabaseQuery` | Executer une requete SQL en lecture seule | Oui | `query` (string, requis), `database` (string) |
 | `DatabaseSchema` | Schema BDD : tables, colonnes, index, cles etrangeres | Oui | `database`, `filter`, `include_views`, `include_routines`, `include_column_details` |

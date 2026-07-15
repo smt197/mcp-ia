@@ -1,17 +1,10 @@
 <p align="center">
-    <img alt="Boost Logo Dark Mode" src="/art/boost-light-mode.svg#gh-light-mode-only"/>
-    <img alt="Boost Logo Dark Mode" src="/art/boost-dark-mode.svg#gh-dark-mode-only"/>
+    MCP-IA
 </p>
 
-<p align="center">
-<a href="https://github.com/laravel/boost/actions"><img src="https://github.com/laravel/boost/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/boost"><img src="https://img.shields.io/packagist/dt/laravel/boost?v=1" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/boost"><img src="https://img.shields.io/packagist/v/laravel/boost?v=1" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/boost"><img src="https://img.shields.io/packagist/l/laravel/boost?v=1" alt="License"></a>
-</p>
 
 ## Introduction
-resurex-boost
+MCP & IA
 
 Laravel Boost accelerates AI-assisted development by providing the essential context and structure that AI needs to generate high-quality, Laravel-specific code.
 
@@ -1084,14 +1077,14 @@ git push origin v1.0.0
 **Etape 3 :** Enregistrer le package sur [packagist.org](https://packagist.org) :
 - Se connecter avec son compte GitHub.
 - Se rendre sur la page de soumission : [https://packagist.org/packages/submit](https://packagist.org/packages/submit).
-- Saisir l'URL du dépôt (ex: `https://github.com/thumanics/laravel-boost.git`).
+- Saisir l'URL du dépôt (ex: `https://github.com/smt197/mcp-ia.git`).
 - Cliquer sur le bouton **"Check"** pour valider la structure.
 - Si tout est correct, cliquer sur **"Submit"**. Packagist détectera automatiquement les informations du `composer.json`.
 
 **Etape 4 :** Le package est installable par les utilisateurs :
 
 ```bash
-composer require thumanics/laravel-boost --dev
+composer require smt197/mcp-ia --dev
 ```
 
 ### Publier sur un depot Composer prive (Satis, Private Packagist, etc.)
